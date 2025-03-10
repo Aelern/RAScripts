@@ -1,5 +1,7 @@
 // Centipede
 // #ID = 25682
+//This was my introduction to RAScripts and I may have chosen weird ways to do things. Big thing
+//was
 
 // $001A59: [8-bit] Classic Mode Is 0x12 when playing classic mode and 0x00 otherwise
 function InClassicMode() => byte(0x001A59)
@@ -451,56 +453,9 @@ function GetStartingLives(levelNum){
     return startingLives
 }
 
-/*
-function LivesChallenge(levelNum, lifeTarget){
-    achievement(
-        title = levelData[levelNum][0] + " Lives Challenge [" + levelData[levelNum][1] + "]",
-        description = "Beat " + levelData[levelNum][1] + " with a net increase of " + lifeTarget + " or more lives. (Not counting bonus points)",
-        points = 10,
-        trigger = LevelStartCheckpoint(levelNum) && LifeCountingLogic(lifeTarget) &&
-            trigger_when(EndOfLevel()) &&
-            unless(IsPaused() == 0x01) && 
-            never(LevelTimer() <= 0x04)
-    )
-}
-*/
 function LevelClearLivesStable(){
     return Lives() == LivesAlt() && LevelClear() == 0x01 && IsUnpaused() == 0x01
 }
-/*
-function LivesChallengeMk2(levelNum, lifeTarget){
-    achievement(
-        title = levelData[levelNum][0] + " Lives Challenge [" + levelData[levelNum][1] + "] 2.0",
-        description = "Beat " + levelData[levelNum][1] + " with a net increase of " + lifeTarget + " or more lives. (Not counting bonus points)",
-        points = 10,
-        trigger = LevelStartCheckpoint(levelNum) &&
-            unless(IsPaused() == 0x01) &&
-            never(LivesCheatEntered()) &&
-            never(LevelTimer() <= 0x04) && 
-            LevelID() == levelNum && InAdventure() == 0x01 &&
-            ((Lives() == LivesAlt() && Lives() >= GetStartingLives(levelNum) + lifeTarget) ||
-            (prev(Lives()) == prev(LivesAlt()) && prev(Lives()) >= GetStartingLives(levelNum) + lifeTarget)) &&
-            trigger_when(LevelClearLivesStable())
-    )
-}
-
-function LivesChallengeMk3(levelNum, lifeTarget){
-    achievement(
-        title = levelData[levelNum][0] + " Lives Challenge [" + levelData[levelNum][1] + "]",
-        description = "Beat " + levelData[levelNum][1] + " with a net increase of " + lifeTarget + " or more lives. (Not counting bonus points)",
-        points = 10,
-        trigger = LevelStartCheckpoint(levelNum) &&
-            unless(IsUnpaused() == 0x00 && LevelClear() == 0x00) &&
-            never(LivesCheatEntered()) &&
-            never(LevelTimer() <= 0x04) && 
-            LevelID() == levelNum && InAdventure() == 0x01 &&
-            once(Lives() == LivesAlt() && Lives() >= (GetStartingLives(levelNum) + lifeTarget) && LevelClear() == 0 && never(Lives() == LivesAlt() && Lives() < GetStartingLives(levelNum) + lifeTarget)) &&
-            never(EndOfScoring()) && 
-            trigger_when(Lives() >= (GetStartingLives(levelNum) + lifeTarget)) &&
-            trigger_when(LevelClearLivesStable())
-    )
-}
-*/
 
 function LivesChallenge(levelNum, lifeTarget){
     achievement(
@@ -516,24 +471,6 @@ function LivesChallenge(levelNum, lifeTarget){
             trigger_when(EndOfLevel())
     )
 }
-
-/*
-function LevelPointsLeaderboard(level){
-    leaderboard(
-        levelData[level][0] + " High Score",
-        "Highest score achieved on " + levelData[level][1],
-        LevelID() == level && LevelTimer() == 0x00 && prev(LevelTimer()) > 0x00 && InAdventure() == 0x01 && InLevel() == 0x00 && LevelClear() == 0x00,
-        always_false(),
-        LevelID() == level && LevelTimer() == 0x00 && prev(LevelTimer()) > 0x00 && InAdventure() == 0x01 && InLevel() == 0x00 && LevelClear() == 0x00,
-        dword(RecordedHighScoreBaseAddress() + 0x4c * level),
-        format = "VALUE",
-        lower_is_better = false
-    )
-}
-
-        (LevelID() + 0x01 == LevelsUnlocked() && LevelID() == level && InAdventure() == 0x01 && prev(LevelClear()) == 0x01 && LevelClear() == 0x00 && InLevel() == 0x00 && IsPaused() == 0x00) || 
-            (LevelID() + 0x01 < LevelsUnlocked() && LevelID() == level && InAdventure() == 0x01 && prev(LevelTimer()) == LevelTimer() && LevelClear() == 0x00 && InLevel() == 0x00 && IsPaused() == 0x00)
-*/
 
 function AllLevelsScored() {
     logic = always_true()
@@ -613,18 +550,6 @@ Speedrun(0x1a, 165)
 Speedrun(0x21, 225)
 EvileLifeChallengeCount = 10
 
-/*
-achievement(
-    title = levelData[0x22][0] + " Lives Challenge [" + levelData[0x22][1] + "]",
-    description = "Beat " + levelData[0x22][1] + " with a net increase of " + EvileLifeChallengeCount + " or more lives. (Not counting bonus points)",
-    points = 10,
-    trigger = LevelStartCheckpoint(0x22) && LifeCountingLogic(EvileLifeChallengeCount) &&
-        BeatQueenPede() &&
-        unless(IsUnpaused() == 0x00 && InLevel() == 0x01) && 
-        never(LevelTimer() <= 0x04)
-)
-*/
-
 achievement(
     title = levelData[0x22][0] + " Lives Challenge [" + levelData[0x22][1] + "]",
     description = "Beat " + levelData[0x22][1] + " with a net increase of " + EvileLifeChallengeCount + " or more lives. (Not counting bonus points)",
@@ -666,23 +591,6 @@ achievement(
 //                                                                              LEADERBOARDS
 //  #####################################################################################################################################################################################################
 
-/*
-function LevelPointsLeaderboard(level){
-    leaderboard(
-        levelData[level][1] + " Score Attack",
-        "Highest score achieved on " + levelData[level][1] + " without dying",
-        LevelID() == level && LevelStart(),
-        InAdventure() == 0x00,
-        LifeLost() || 
-            (((LevelID() == level && LevelID() < LevelsUnlocked()) || (LevelID() == level + 1 && LevelID() == LevelsUnlocked())) && 
-            prev(LevelTimer()) == LevelTimer() && LevelTimer() > 0x04 && InAdventure() == 0x01 && InLevel() == 0x00 && LevelClear() == 0x00),
-        prev(TrueScore()),
-        format = "VALUE",
-        lower_is_better = false
-    )
-}
-*/
-
 function LevelPointsLeaderboard(level){
     leaderboard(
         levelData[level][1] + " Score Attack",
@@ -699,21 +607,6 @@ function LevelPointsLeaderboard(level){
         lower_is_better = false
     )
 }
-
-/*
-function LevelPointsLeaderboard(level){
-    leaderboard(
-        levelData[level][0] + " High Score",
-        "Highest score achieved on " + levelData[level][1],
-        ((LevelID() == level && LevelID() < LevelsUnlocked()) || (LevelID() == level + 1 && LevelID() == LevelsUnlocked())) && prev(LevelTimer()) == LevelTimer() && LevelTimer() > 0x04 && InAdventure() == 0x01 && InLevel() == 0x00 && LevelClear() == 0x00,
-        always_false(),
-        ((LevelID() == level && LevelID() < LevelsUnlocked()) || (LevelID() == level + 1 && LevelID() == LevelsUnlocked())) && prev(LevelTimer()) == LevelTimer() && LevelTimer() > 0x04 && InAdventure() == 0x01 && InLevel() == 0x00 && LevelClear() == 0x00,
-        prev(TrueScore()),
-        format = "VALUE",
-        lower_is_better = false
-    )
-}
-*/
 
 function LevelSpeedrunLeaderboard(level){
     leaderboard(
@@ -813,231 +706,3 @@ leaderboard(
     format = "VALUE",
     lower_is_better = false
 )
-/*
-achievement(
-    title = "Mycophobia",
-    points = 0,
-    description = "Destroy 300 mushrooms in one level in a single life",
-    trigger = once(prev(LevelTimer()) == 0x04 && LevelTimer() > 0x04 && InAdventure() == 0x01 && InLevel() == 0x01) && 
-        never(LevelTimer() == 0x00 && prev(LevelID()) != LevelID() && prev(InAdventure()) != InAdventure()) && 
-        measured(repeated(6, tally(50, prev(TrueScore()) + 1 == TrueScore()))) &&
-        unless(IsPaused() == 0x01) && 
-        never(prev(Lives()) > Lives())
-)
-*/
-/*
-achievement(
-    title = "Perfect 1-1 [Wee Are Number One]", points = 0,
-    description = "Beat The Firth of Fifth on Hard with all objectives fulfilled",
-    trigger = LevelID() == 0x00 && prev(LevelClear()) == 0x00 && LevelClear() == 0x01 && IsPaused() == 0x00 &&
-              DifficultyA() == 0x01 && DifficultyB() == 0x8F && WeeCitizenCount() == WeeCitizenTotal() &&
-              WeeHouseCount() == WeeHouseTotal()
-)
-
-achievement(
-    title = "Perfect 1-2 [The Crack of Doom]", points = 0,
-    description = "Beat The Crack of Doom on Hard with all objectives fulfilled",
-    trigger = LevelID() == 0x01 && prev(LevelClear()) == 0x00 && LevelClear() == 0x01 && IsPaused() == 0x00 &&
-              DifficultyA() == 0x01 && DifficultyB() == 0x8F && WeeCitizenCount() == WeeCitizenTotal()
-)
-
-achievement(
-    title = "Perfect 1-3 [Four Score]", points = 0,
-    description = "Beat Four Score on Hard with all objectives fulfilled",
-    trigger = LevelID() == 0x02 && prev(LevelClear()) == 0x00 && LevelClear() == 0x01 && IsPaused() == 0x00 &&
-              DifficultyA() == 0x01 && DifficultyB() == 0x8F && WeeCitizenCount() == WeeCitizenTotal() &&
-              WeeHouseCount() == WeeHouseTotal()
-)
-
-achievement(
-    title = "Perfect 1-4 [City of Wall]", points = 0,
-    description = "Beat City of Wall on Hard with all objectives fulfilled",
-    trigger = LevelID() == 0x03 && prev(LevelClear()) == 0x00 && LevelClear() == 0x01 && IsPaused() == 0x00 && 
-        DifficultyA() == 0x01 && DifficultyB() == 0x8F && ObjectiveMet("Wee Citizen") && ObjectiveMet("Wee House")
-)
-
-achievement(
-    title = "Perfect 1-5 [Ant May]", points = 0,
-    description = "Beat Ant May on Hard with all objectives fulfilled",
-    trigger = LevelID() == 0x04 && EndOfLevel() && OnHard() && ObjectiveMet("Star Crystal") && ObjectiveMet("Druid")
-)
-
-achievement(
-    title = "Perfect 2-1 [The Beetles are Coming, The Beetles are Coming]", points = 0,
-    description = "Beat One by Sea on Hard with all objectives fulfilled",
-    trigger = LevelID() == 0x05 && EndOfLevel() && OnHard() && ObjectiveMet("Wise Wee") && ObjectiveMet("Aridia House")
-)
-
-achievement(
-    title = "Perfect 2-2 [Sands Across the Water]", points = 0,
-    description = "Beat Sands Across the Water on Hard with all objectives fulfilled",
-    trigger = LevelID() == 0x06 && EndOfLevel() && OnHard() && ObjectiveMet("Wise Wee") && ObjectiveMet("Aridia House") && ObjectiveMet("Kaikoura")
-)
-
-achievement(
-    title = "Perfect 2-3 [Cistern, Cistern]", points = 0,
-    description = "Beat Cistern, Cistern on Hard with all objectives fulfilled",
-    trigger = LevelID() == 0x07 && EndOfLevel() && OnHard() && ObjectiveMet("Aridia House") && ObjectiveMet("Kaikoura")
-)
-
-achievement(
-    title = "Perfect 2-4 [Down in the Valley]", points = 0,
-    description = "Beat Down in the Valley on Hard with all objectives fulfilled",
-    trigger = LevelID() == 0x08 && EndOfLevel() && OnHard() && ObjectiveMet("Wise Wee") && ObjectiveMet("Aridia House") && ObjectiveMet("Kaikoura")
-)
-
-achievement(
-    title = "Perfect 2-5 [Crater of Creation]", points = 0,
-    description = "Beat Crater of Creation on Hard with all objectives fulfilled",
-    trigger = LevelID() == 0x09 && EndOfLevel() && OnHard() && ObjectiveMet("Druid") && ObjectiveMet("Crystal Foci")
-)
-
-achievement(
-    title = "Perfect 2-6 [Flea's Grand Finale]", points = 0,
-    description = "Beat Out of Bounds on Hard with all objectives fulfilled",
-    trigger = LevelID() == 0x0a && EndOfLevel() && OnHard() && ObjectiveMet("Wise Wee")
-)
-
-achievement(
-    title = "Perfect 3-1 [Trapped Under Ice]", points = 0,
-    description = "Beat Trapped Under Ice on Hard with all objectives fulfilled",
-    trigger = LevelID() == 0x0b && EndOfLevel() && OnHard() && ObjectiveMet("Druid") && ObjectiveMet("Frostonia House") && ObjectiveMet("Talisman")
-)
-
-achievement(
-    title = "Perfect 3-2 [A Glacier Runs Through It]", points = 0,
-    description = "Beat A Glacier Runs Through It on Hard with all objectives fulfilled",
-    trigger = LevelID() == 0x0c && EndOfLevel() && OnHard() && ObjectiveMet("Star Crystal") && ObjectiveMet("Druid")
-)
-
-achievement(
-    title = "Perfect 3-3 [Iceberg Let's]", points = 0,
-    description = "Beat Iceberg Let Us on Hard with all objectives fulfilled",
-    trigger = LevelID() == 0x0d && EndOfLevel() && OnHard() && ObjectiveMet("Star Crystal") && ObjectiveMet("Druid") && ObjectiveMet("Frostonia House")
-)
-
-achievement(
-    title = "Perfect 3-4 [Celtic Frost]", points = 0,
-    description = "Beat Celtic Frost on Hard with all objectives fulfilled",
-    trigger = LevelID() == 0x0e && EndOfLevel() && OnHard() && ObjectiveMet("Star Crystal") && ObjectiveMet("Druid")
-)
-
-achievement(
-    title = "Perfect 3-5 [Five Star Motel]", points = 0,
-    description = "Beat Motel of Lost Champions on Hard with all objectives fulfilled",
-    trigger = LevelID() == 0x0f && EndOfLevel() && OnHard() && ObjectiveMet("Frostonia Hero") && ObjectiveMet("Talisman")
-)
-
-achievement(
-    title = "Perfect 3-6 [Huckleberry Friend]", points = 0,
-    description = "Beat Huckleberry Friend on Hard with all objectives fulfilled",
-    trigger = LevelID() == 0x10 && EndOfLevel() && OnHard() && ObjectiveMet("Star Crystal") && ObjectiveMet("Talisman")
-)
-
-achievement(
-    title = "Perfect 4-1 [Jump in the Fire]", points = 0,
-    description = "Beat Jump in the Fire on Hard with all objectives fulfilled",
-    trigger = LevelID() == 0x11 && EndOfLevel() && OnHard() && ObjectiveMet("Miner") && ObjectiveMet("Dwelling") && ObjectiveMet("Equipment")
-)
-
-achievement(
-    title = "Perfect 4-2 [A Bridge Over Molten Magma]", points = 0,
-    description = "Beat A Bridge Over Molten Magma on Hard with all objectives fulfilled",
-    trigger = LevelID() == 0x12 && EndOfLevel() && OnHard() && ObjectiveMet("Miner") && ObjectiveMet("Equipment") && ObjectiveMet("Mine Cart")
-)
-
-achievement(
-    title = "Perfect 4-3 [Schmokenden]", points = 0,
-    description = "Beat Schmokenden with all objectives fulfilled",
-    trigger = LevelID() == 0x13 && EndOfLevel() && OnHard() && ObjectiveMet("Miner") && ObjectiveMet("Mine Cart") && ObjectiveMet("Extract")
-)
-
-achievement(
-    title = "Perfect 4-4 [Furnace of Fools]", points = 0,
-    description = "Beat Furnace of Fools on Hard with all objectives fulfilled",
-    trigger = LevelID() == 0x14 && EndOfLevel() && OnHard() && ObjectiveMet("Miner") && ObjectiveMet("Equipment") && ObjectiveMet("Extract")
-)
-
-achievement(
-    title = "Perfect 4-5 [But It's a Dry Heat]", points = 0,
-    description = "Beat But It's a Dry Heat on Hard with all objectives fulfilled",
-    trigger = LevelID() == 0x15 && EndOfLevel() && OnHard() && ObjectiveMet("Equipment") && ObjectiveMet("Mine Cart")
-)
-
-achievement(
-    title = "Perfect 4-6 [Born of Fire]", points = 0,
-    description = "Beat Born of Fire on Hard with all objectives fulfilled",
-    trigger = LevelID() == 0x16 && EndOfLevel() && OnHard() && ObjectiveMet("Miner")
-)
-
-achievement(
-    title = "Perfect 5-1 [A Head for All Seasons]", points = 0,
-    description = "Beat A Head for All Seasons on Hard with all objectives fulfilled",
-    trigger = LevelID() == 0x17 && EndOfLevel() && OnHard() && ObjectiveMet("Talisman") && ObjectiveMet("Enigma Hero") && ObjectiveMet("Disruptor")
-)
-
-achievement(
-    title = "Perfect 5-2 [A Hand Out Not a Hand Up]", points = 0,
-    description = "Beat A Hand Out Not a Hand Up on Hard with all objectives fulfilled",
-    trigger = LevelID() == 0x18 && EndOfLevel() && OnHard() && ObjectiveMet("Talisman") && ObjectiveMet("Enigma Hero") && ObjectiveMet("Disruptor")
-)
-
-achievement(
-    title = "Perfect 5-3 [Show Me the Karma]", points = 0,
-    description = "Beat Show Me the Karma with all objectives fulfilled",
-    trigger = LevelID() == 0x19 && EndOfLevel() && OnHard() && ObjectiveMet("Talisman") && ObjectiveMet("Enigma Hero") && ObjectiveMet("Disruptor")
-)
-
-achievement(
-    title = "Perfect 5-4 [Get Real]", points = 0,
-    description = "Beat Go Figure on Hard with all objectives fulfilled",
-    trigger = LevelID() == 0x1a && EndOfLevel() && OnHard() && ObjectiveMet("Talisman") && ObjectiveMet("Enigma Hero") && ObjectiveMet("Disruptor")
-)
-
-achievement(
-    title = "Perfect 5-5 [The Slope's On You]", points = 0,
-    description = "Beat The Slope's On You on Hard with all objectives fulfilled",
-    trigger = LevelID() == 0x1b && EndOfLevel() && OnHard() && ObjectiveMet("Talisman") && ObjectiveMet("Enigma Hero") && ObjectiveMet("Disruptor")
-)
-
-achievement(
-    title = "Perfect 5-6 [Logg A Rhythmic]", points = 0,
-    description = "Beat Logg A Rhythmic on Hard with all objectives fulfilled",
-    trigger = LevelID() == 0x1c && EndOfLevel() && OnHard() && ObjectiveMet("Disruptor")
-)
-
-achievement(
-    title = "Perfect 6-1 [All Done Here I Reckon]", points = 0,
-    description = "Beat A Hero's Reckoning on Hard with all objectives fulfilled",
-    trigger = LevelID() == 0x1d && EndOfLevel() && OnHard() && ObjectiveMet("Talisman") && ObjectiveMet("Prisoner")
-)
-
-achievement(
-    title = "Perfect 6-2 [This Mad Machinery]", points = 0,
-    description = "Beat This Mad Machinery on Hard with all objectives fulfilled",
-    trigger = LevelID() == 0x1e && EndOfLevel() && OnHard() && ObjectiveMet("Talisman") && ObjectiveMet("Prisoner")
-)
-
-achievement(
-    title = "Perfect 6-3 [Wee Free Men]", points = 0,
-    description = "Beat Curiosity Caught the Wee with all objectives fulfilled",
-    trigger = LevelID() == 0x1f && EndOfLevel() && OnHard() && ObjectiveMet("Talisman") && ObjectiveMet("Jail") && ObjectiveMet("Prisoner")
-)
-
-achievement(
-    title = "Perfect 6-4 [Things Crawl in the Darkness]", points = 0,
-    description = "Beat Things Crawl in the Darkness on Hard with all objectives fulfilled",
-    trigger = LevelID() == 0x20 && EndOfLevel() && OnHard() && ObjectiveMet("Talisman") && ObjectiveMet("Jail") && ObjectiveMet("Prisoner")
-)
-
-achievement(
-    title = "Perfect 6-5 [Your Back's Against No Wall]", points = 0,
-    description = "Beat Your Back's Against No Wall on Hard with all objectives fulfilled",
-    trigger = LevelID() == 0x21 && EndOfLevel() && OnHard() && ObjectiveMet("Talisman") && ObjectiveMet("Prisoner")
-)
-
-achievement(
-    title = "Perfect 6-6 [Her Dead Power]", points = 0,
-    description = "Beat Her Dread Power the Queen Pede on Hard with all objectives fulfilled",
-    trigger = LevelID() == 0x22 && EndOfLevel() && OnHard()
-)*/
