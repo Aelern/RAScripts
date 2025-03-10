@@ -1,6 +1,30 @@
 // Croc 2
 // #ID = 12943
 
+// $C5B0: [8-bit] Which screen game is on
+//      0x01 = Loading
+//      0x02 = Gameplay
+//      0x03 = Swap Meet Pete
+//      0x08 = Intro animation
+//      0x09 = Boss Defeated
+//      0x0a = Options
+//      0x0b = Continue?
+//      0x0c = Password
+//      0x0d = Opening logos
+//      0x0e = Title screen
+//      0x10 = Dante defeated
+//      0x11 = Push start
+//      0x14 = Credits
+function GameScreen() => byte(0x00C5B0)
+
+// $C645: [8-bit] Is game being played
+//      0x00 = Title screen / Title menus / Credits
+//      0x01 = Gameplay
+function InGameplay() => byte(0x00C645)
+
+// $C805: [8-bit] Flashes from 0x00 to 0x01 when Baron Dante 2 takes damage
+function DanteDamaged() => byte(0x00C805)
+
 // $C9E2: [8-bit] Inventory items
 //        Bit4-8 = Robo Gobbo count
 //        Bit3 = Robo Gobbo saved and available in shop
@@ -41,7 +65,7 @@ function GoldenGobbosCaveman() => byte(0x00C9E7)
 //        Bit5 = Letter
 //        Bit6 = Grandpa
 //        Bit7 = Statue
-function GoldenGobbosIncan() => byte(0x00C9E8)
+function GoldenGobbosInca() => byte(0x00C9E8)
 
 function GoldenGobbosBaseAddress() => 0x00C9E5
 
@@ -117,8 +141,21 @@ function CrocState() => byte(0x00CABC)
 // $CB1D: [8-bit] Baron Dante 1's HP
 function DanteFirstHP() => byte(0x00CB1D)
 
-// $CB24: [8-bit] Soveena's HP
-function SoveenaHP() => byte(0x00CB24)
+// $CB24: [8-bit] Soveena / Lava Monster's HP
+function RegBossHP() => byte(0x00CB24)
+
+// $CF90: [8-bit] Game paused. 0 = No, 1 = Yes
+function IsPaused() => byte(0x00CF90)
+
+function DanteDefeated(){
+    return once(never(prev(Lives()) > Lives() && World() == 3 && Area() == 4 && Room() == 1)) &&
+        tally(5, prev(DanteDamaged() == 0), DanteDamaged() == 1, World() == 3, Area() == 4, Room() == 1)
+        
+}
+
+function GameStarted(){
+    return prev(InGameplay()) == 0 && InGamePlay() == 1 && World() == 0 && Area() == 0 && Room() == 0 && LevelsComplete() == 0
+}
 
 levelNames = [["kidnapped gobbo", "stolen sandwich", "missing treasures"],
     ["medicinal herb", "gobbo in the mines", "snowman"],
@@ -155,8 +192,15 @@ achievement(
     title = "Beat Incan World",
     description = "Defeat Baron Dante",
     points = 0,
-    trigger = prev(LavaMonsterBeaten() == 0) && LavaMonsterBeaten() == 1 && World() == 3,
+    trigger = DanteDefeated(),
     type = "win_condition"
+)
+
+achievement(
+    title = "True Ending",
+    description = "Get the true ending by defeating Baron Dante after collecting all Golden Gobbos",
+    points = 0,
+    trigger = DanteDefeated() && GoldenGobbosSailor() == 0xe0 && GoldenGobbosCossack() == 0xe0 && GoldenGobbosCaveman() == 0xe0 && GoldenGobbosInca() == 0xe0
 )
 
 for i in range(0,3){
@@ -179,8 +223,103 @@ achievement(
 
 achievement(
     title = "Max Lives",
-    description = "Reach 10 lives",
+    description = "Reach 10 total lives",
     points = 0,
     trigger = prev(Lives() == 0x09) && Lives() == 0x0a
 )
 
+achievement(
+    title = "Three Heart Run: Sailor World",
+    description = "Defeat Soveena the Squid with only three max health",
+    points = 0,
+    trigger = prev(SoveenaBeaten() == 0) && SoveenaBeaten() == 1 && World() == 0 && MaxHealth() == 3
+)
+
+achievement(
+    title = "Three Heart Run: Cossack World",
+    description = "Defeat the Lava Monster with only three max health",
+    points = 0,
+    trigger = prev(LavaMonsterBeaten() == 0) && LavaMonsterBeaten() == 1 && World() == 1 && MaxHealth() == 3
+)
+
+achievement(
+    title = "Three Heart Run: Caveman World",
+    description = "Defeat the Mad Scientist with only three max health",
+    points = 0,
+    trigger = prev(MadScientistBeaten() == 0) && MadScientistBeaten() == 1 && World() == 2 && MaxHealth() == 3
+)
+
+achievement(
+    title = "Three Heart Run: Incan World",
+    description = "Defeat Baron Dante with only three max health",
+    points = 0,
+    trigger = DanteDefeated() && MaxHealth() == 3
+)
+
+AreaLookup = {
+    0x00: "",
+    0x01: "saving the kidnapped gobbo ",
+    0x02: "seeking a stolen sandwich ",
+    0x03: "finding stolen treasures ", 
+    0x04: "Soveena the squid",
+    0x05: "",
+    0x06: "finding a medicinal herb ",
+    0x07: "rescuing a gobbo from the mines ", 
+    0x08: "repairing a wrecked snowman ",
+    0x09: "the lava monster",
+    0x0a: "",
+    0x0b: "finding the stolen Robo Gobbo ",
+    0x0c: "investigating the rising lava ", 
+    0x0d: "repairing the water pipe ",
+    0x0e: "the mad scientist",
+    0x0f: "",
+    0x10: "delivering a letter ",
+    0x11: "rescuing a gobbo's grandpa ", 
+    0x12: "finding the stolen statue piece ",
+    0x13: "Baron Dante ",
+}
+
+WorldLookup = {
+    0: "Sailor Village",
+    1: "Cossack Village",
+    2: "Caveman Village",
+    3: "Inca Village"
+}
+
+PeteLookup = {
+    2: "visiting",
+    3: "at Swap Meet Pete's in"
+}
+
+function GemCount() => bit0(0x00C9E3) + bit1(0x00C9E3) + bit2(0x00C9E3) + bit3(0x00C9E3) + bit4(0x00C9E3)
+function GoldenGobboCount() => bit5(0x00C9E5) + bit6(0x00C9E5) + bit7(0x00C9E5) +
+    bit5(0x00C9E6) + bit6(0x00C9E6) + bit7(0x00C9E6) + 
+    bit5(0x00C9E7) + bit6(0x00C9E7) + bit7(0x00C9E7) + 
+    bit5(0x00C9E8) + bit6(0x00C9E8) + bit7(0x00C9E8)
+
+rich_presence_conditional_display(GameScreen() == 0x08 || GameScreen() == 0x0a || GameScreen() == 0x0c || GameScreen() == 0x0d || GameScreen() == 0x0e || GameScreen() == 0x11, "On the main menu")
+rich_presence_conditional_display(GameScreen() == 0x10 || (InGameplay() == 0 && GameScreen() != 0x11 && GameScreen() >= 0x10), "Croc saved the day!")
+rich_presence_conditional_display(InGameplay() == 1 && Area() == 0, "Croc is {0} {1} ❤[{2}/{3}] 🐊[{4}] 🏆[{5}/12]", 
+    rich_presence_lookup("Screen", GameScreen(), PeteLookup),
+    rich_presence_lookup("World", World(), WorldLookup),
+    rich_presence_value("Digit", Health()),
+    rich_presence_value("Digit", MaxHealth()),
+    rich_presence_value("Digit", Lives()),
+    rich_presence_value("Digit", GoldenGobboCount())
+)
+rich_presence_conditional_display(InGameplay() == 1 && Area() == 4, "Croc is battling {0} ❤[{1}/{2}] 🐊[{3}] 🏆[{4}/12]", 
+    rich_presence_lookup("Level", 5 * World() + Area(), AreaLookup),
+    rich_presence_value("Digit", Health()),
+    rich_presence_value("Digit", MaxHealth()),
+    rich_presence_value("Digit", Lives()),
+    rich_presence_value("Digit", GoldenGobboCount())
+)
+rich_presence_display("Croc is {0}at {1} ❤[{2}/{3}] 🐊[{4}] 💎[{5}/5] 🏆[{6}/12]",
+    rich_presence_lookup("Level", 5 * World() + Area(), AreaLookup),
+    rich_presence_lookup("World", World(), WorldLookup),
+    rich_presence_value("Digit", Health()),
+    rich_presence_value("Digit", MaxHealth()),
+    rich_presence_value("Digit", Lives()),
+    rich_presence_value("Digit", GemCount()),
+    rich_presence_value("Digit", GoldenGobboCount())
+)
