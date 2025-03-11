@@ -1,8 +1,11 @@
 // Croc 2
 // #ID = 12943
 
+// $00FC: [32-bit] BIOS Block. When 0x50e0113e game is initializing and achievements should not be earned
+function BIOSCheck() => dword(0x0000FC)
+
 // $C5B0: [8-bit] Which screen game is on
-//      0x01 = Loading
+//      0x01 = Flashed when starting a new game
 //      0x02 = Gameplay
 //      0x03 = Swap Meet Pete
 //      0x08 = Intro animation
@@ -14,12 +17,17 @@
 //      0x0e = Title screen
 //      0x10 = Dante defeated
 //      0x11 = Push start
+//      0x13 = Flashed when starting from password
 //      0x14 = Credits
+//      0x15 = Flashed when restarting via continue
+//      0x16 = Dante fight intro
+//      0x17 = Loading from password
 function GameScreen() => byte(0x00C5B0)
 
 // $C645: [8-bit] Is game being played
 //      0x00 = Title screen / Title menus / Credits
 //      0x01 = Gameplay
+//      Can be 0x01 on main menu if you died and chose not to continue
 function InGameplay() => byte(0x00C645)
 
 // $C805: [8-bit] Flashes from 0x00 to 0x01 when Baron Dante 2 takes damage
@@ -147,14 +155,33 @@ function RegBossHP() => byte(0x00CB24)
 // $CF90: [8-bit] Game paused. 0 = No, 1 = Yes
 function IsPaused() => byte(0x00CF90)
 
+/*
 function DanteDefeated(){
     return once(never(prev(Lives()) > Lives() && World() == 3 && Area() == 4 && Room() == 1)) &&
         tally(5, prev(DanteDamaged() == 0), DanteDamaged() == 1, World() == 3, Area() == 4, Room() == 1)
         
 }
+*/
+function DanteDefeated(){
+    return prev(GameScreen() == 0x02) && GameScreen() == 0x10 && World() == 3 && Area() == 4 && Room() == 1
+}
 
 function GameStarted(){
-    return prev(InGameplay()) == 0 && InGamePlay() == 1 && World() == 0 && Area() == 0 && Room() == 0 && LevelsComplete() == 0
+    return prev(GameScreen()) == 0x01 && GameScreen() == 0x02 && World() == 0 && Area() == 0 && Room() == 0 && LevelsComplete() == 0
+}
+
+function SpeedrunChallenge(world, area, startRoom, seconds){
+    achievement(
+        title = (world+1) + "-" + (area) + " Speedrun",
+        description = "Complete the level in less than " + seconds + " seconds.",
+        points = 0,
+        trigger = once(World() == world && prev(Area()) == 0 && Area() == area && BIOSCheck() != 0x50e0113e) &&
+            never(GameScreen() == 0x0b) &&
+            unless(IsPaused() == 0x01) &&
+            never(tally(seconds * 60, Area() == area)) &&
+            never(prev(Area()) != area && Area() != area) &&
+            trigger_when(prev(Area()) == area && Area() == 0 && prev(Room()) != startRoom)
+    )
 }
 
 levelNames = [["kidnapped gobbo", "stolen sandwich", "missing treasures"],
@@ -168,7 +195,7 @@ achievement(
     title = "Beat Sailor World",
     description = "Defeat Soveena the Squid to save Sailor Village",
     points = 0,
-    trigger = prev(SoveenaBeaten() == 0) && SoveenaBeaten() == 1 && World() == 0,
+    trigger = prev(SoveenaBeaten() == 0) && SoveenaBeaten() == 1 && World() == 0 && BIOSCheck() != 0x50e0113e,
     type = "progression"
 )
 
@@ -176,7 +203,7 @@ achievement(
     title = "Beat Cossack World",
     description = "Defeat the Lava Monster to save Cossack Village",
     points = 0,
-    trigger = prev(LavaMonsterBeaten() == 0) && LavaMonsterBeaten() == 1 && World() == 1,
+    trigger = prev(LavaMonsterBeaten() == 0) && LavaMonsterBeaten() == 1 && World() == 1 && BIOSCheck() != 0x50e0113e,
     type = "progression"
 )
 
@@ -184,15 +211,15 @@ achievement(
     title = "Beat Caveman World",
     description = "Defeat the Mad Scientist to save Caveman Village",
     points = 0,
-    trigger = prev(MadScientistBeaten() == 0) && MadScientistBeaten() == 1 && World() == 2,
+    trigger = prev(MadScientistBeaten() == 0) && MadScientistBeaten() == 1 && World() == 2 && BIOSCheck() != 0x50e0113e,
     type = "progression"
 )
 
 achievement(
-    title = "Beat Incan World",
+    title = "Beat Inca World",
     description = "Defeat Baron Dante",
     points = 0,
-    trigger = DanteDefeated(),
+    trigger = DanteDefeated() && BIOSCheck() != 0x50e0113e,
     type = "win_condition"
 )
 
@@ -200,7 +227,7 @@ achievement(
     title = "True Ending",
     description = "Get the true ending by defeating Baron Dante after collecting all Golden Gobbos",
     points = 0,
-    trigger = DanteDefeated() && GoldenGobbosSailor() == 0xe0 && GoldenGobbosCossack() == 0xe0 && GoldenGobbosCaveman() == 0xe0 && GoldenGobbosInca() == 0xe0
+    trigger = DanteDefeated() && GoldenGobbosSailor() == 0xe0 && GoldenGobbosCossack() == 0xe0 && GoldenGobbosCaveman() == 0xe0 && GoldenGobbosInca() == 0xe0 && BIOSCheck() != 0x50e0113e
 )
 
 for i in range(0,3){
@@ -209,52 +236,143 @@ for i in range(0,3){
             title = "Golden Gobbo " + villageNames[i] + " " + j+1,
             description = "Find the Golden Gobbo in the " + levelNames[i][j] + " mission in " + villageNames[i] + ".",
             points = 0,
-            trigger = prev(bit(j+5, GoldenGobbosBaseAddress()+i)) == 0 && bit(j+5, GoldenGobbosBaseAddress()+i) == 1 && World() == i && Area() == j+1
+            trigger = prev(bit(j+5, GoldenGobbosBaseAddress()+i)) == 0 && bit(j+5, GoldenGobbosBaseAddress()+i) == 1 && World() == i && Area() == j+1 && BIOSCheck() != 0x50e0113e
         )
     }
 }
 
 achievement(
+    title = "Heart Gift",
+    description = "Receive a Heart Pot from a friendly gobbo",
+    points = 0,
+    trigger = prev(MaxHealth()) == 0x03 && MaxHealth() == 0x04 && GameScreen() == 0x02 && World() == 0 && Area() == 0 && BIOSCheck() != 0x50e0113e
+)
+
+achievement(
     title = "Max Health",
     description = "Get 8 maximum health",
     points = 0,
-    trigger = prev(MaxHealth()) == 0x07 && MaxHealth() == 0x08
+    trigger = prev(MaxHealth()) == 0x07 && MaxHealth() == 0x08 && BIOSCheck() != 0x50e0113e
 )
 
 achievement(
     title = "Max Lives",
     description = "Reach 10 total lives",
     points = 0,
-    trigger = prev(Lives() == 0x09) && Lives() == 0x0a
+    trigger = prev(Lives() == 0x09) && Lives() == 0x0a && BIOSCheck() != 0x50e0113e
 )
 
 achievement(
     title = "Three Heart Run: Sailor World",
     description = "Defeat Soveena the Squid with only three max health",
     points = 0,
-    trigger = prev(SoveenaBeaten() == 0) && SoveenaBeaten() == 1 && World() == 0 && MaxHealth() == 3
+    trigger = prev(SoveenaBeaten() == 0) && SoveenaBeaten() == 1 && World() == 0 && MaxHealth() == 3 && BIOSCheck() != 0x50e0113e
 )
 
 achievement(
     title = "Three Heart Run: Cossack World",
     description = "Defeat the Lava Monster with only three max health",
     points = 0,
-    trigger = prev(LavaMonsterBeaten() == 0) && LavaMonsterBeaten() == 1 && World() == 1 && MaxHealth() == 3
+    trigger = prev(LavaMonsterBeaten() == 0) && LavaMonsterBeaten() == 1 && World() == 1 && MaxHealth() == 3 && BIOSCheck() != 0x50e0113e
 )
 
 achievement(
     title = "Three Heart Run: Caveman World",
     description = "Defeat the Mad Scientist with only three max health",
     points = 0,
-    trigger = prev(MadScientistBeaten() == 0) && MadScientistBeaten() == 1 && World() == 2 && MaxHealth() == 3
+    trigger = prev(MadScientistBeaten() == 0) && MadScientistBeaten() == 1 && World() == 2 && MaxHealth() == 3 && BIOSCheck() != 0x50e0113e
 )
 
 achievement(
-    title = "Three Heart Run: Incan World",
+    title = "Three Heart Run: Inca World",
     description = "Defeat Baron Dante with only three max health",
     points = 0,
-    trigger = DanteDefeated() && MaxHealth() == 3
+    trigger = DanteDefeated() && MaxHealth() == 3 && BIOSCheck() != 0x50e0113e
 )
+
+SpeedrunChallenge(0, 1, 0, 60)
+SpeedrunChallenge(1, 3, 0, 105)
+SpeedrunChallenge(2, 1, 0, 45)
+SpeedrunChallenge(3, 3, 1, 50)
+
+// LEADERBOARDS
+
+
+function GoldenGobboCount() => bit5(0x00C9E5) + bit6(0x00C9E5) + bit7(0x00C9E5) +
+    bit5(0x00C9E6) + bit6(0x00C9E6) + bit7(0x00C9E6) + 
+    bit5(0x00C9E7) + bit6(0x00C9E7) + bit7(0x00C9E7) + 
+    bit5(0x00C9E8) + bit6(0x00C9E8) + bit7(0x00C9E8)
+
+leaderboard(
+    title = "Any% Speedrun",
+    description = "Defeat Baron Dante from a new game as fast as possible",
+    start = GameStarted() && BIOSCheck() != 0x50e0113e,
+    cancel = GameScreen() == 0x0e,
+    submit = DanteDefeated(),
+    value = IsPaused() == 0,
+    format = "FRAMES",
+    lower_is_better = true
+)
+
+leaderboard(
+    title = "100% Speedrun",
+    description = "Collect all Golden Gobbos and defeat Baron Dante from a new game as fast as possible",
+    start = GameStarted() && BIOSCheck() != 0x50e0113e,
+    cancel = GameScreen() == 0x0e,
+    submit = DanteDefeated() && GoldenGobboCount() == 0x0c,
+    value = IsPaused() == 0,
+    format = "FRAMES",
+    lower_is_better = true
+)
+function ILSpeedrun(world, area){
+    startRoom = 0
+    if (world == 3 && area == 3){
+        startRoom = 1
+    }
+    if (area < 4){
+        leaderboard(
+            title = world+1 + "-" + area + " Speedrun",
+            description = "Complete the level as fast as you can",
+            start = World() == world && prev(Area()) == 0 && Area() == area && Room() == startRoom && BIOSCheck() != 0x50e0113e,
+            cancel = (prev(Area()) != area && Area() != area) || GameScreen() == 0x0b,
+            submit = prev(Area()) == area && Area() == 0 && prev(Room()) != startRoom,
+            value = IsPaused() == 0,
+            format = "FRAMES",
+            lower_is_better = true
+        )
+    } else if (world < 3){
+        leaderboard(
+            title = "World " + world+1 + " Boss Speedrun",
+            description = "Defeat the boss as fast as you can",
+            start = World() == world && prev(Area()) == 0 && Area() == area && Room() == startRoom && BIOSCheck() != 0x50e0113e,
+            cancel = (prev(Area()) != area && Area() != area) || GameScreen() == 0x0b,
+            submit = prev(GameScreen() == 0x02) && GameScreen() == 0x09,
+            value = IsPaused() == 0,
+            format = "FRAMES",
+            lower_is_better = true
+        )
+    } else {
+        leaderboard(
+            title = "Baron Dante Speedrun",
+            description = "Defeat Dante as fast as you can",
+            start = World() == world && prev(Area()) == 0 && Area() == area && Room() == startRoom && BIOSCheck() != 0x50e0113e,
+            cancel = (prev(Area()) != area && Area() != area) || GameScreen() == 0x0b,
+            submit = DanteDefeated(),
+            value = IsPaused() == 0,
+            format = "FRAMES",
+            lower_is_better = true
+        )
+        
+    }
+}
+for i in range(0,3) {
+    for j in range(1,4) {
+        ILSpeedrun(i, j)
+    }
+}
+
+// RICH PRESENCE
+
 
 AreaLookup = {
     0x00: "",
@@ -290,16 +408,11 @@ PeteLookup = {
     2: "visiting",
     3: "at Swap Meet Pete's in"
 }
-
 function GemCount() => bit0(0x00C9E3) + bit1(0x00C9E3) + bit2(0x00C9E3) + bit3(0x00C9E3) + bit4(0x00C9E3)
-function GoldenGobboCount() => bit5(0x00C9E5) + bit6(0x00C9E5) + bit7(0x00C9E5) +
-    bit5(0x00C9E6) + bit6(0x00C9E6) + bit7(0x00C9E6) + 
-    bit5(0x00C9E7) + bit6(0x00C9E7) + bit7(0x00C9E7) + 
-    bit5(0x00C9E8) + bit6(0x00C9E8) + bit7(0x00C9E8)
 
-rich_presence_conditional_display(GameScreen() == 0x08 || GameScreen() == 0x0a || GameScreen() == 0x0c || GameScreen() == 0x0d || GameScreen() == 0x0e || GameScreen() == 0x11, "On the main menu")
-rich_presence_conditional_display(GameScreen() == 0x10 || (InGameplay() == 0 && GameScreen() != 0x11 && GameScreen() >= 0x10), "Croc saved the day!")
-rich_presence_conditional_display(InGameplay() == 1 && Area() == 0, "Croc is {0} {1} ❤[{2}/{3}] 🐊[{4}] 🏆[{5}/12]", 
+rich_presence_conditional_display(BIOSCheck() == 0x50e0113e || GameScreen() == 0x08 || GameScreen() == 0x0a || GameScreen() == 0x0c || GameScreen() == 0x0d || GameScreen() == 0x0e || GameScreen() == 0x11 || GameScreen() == 0x13 || GameScreen() >= 0x17, "On the main menu")
+rich_presence_conditional_display(GameScreen() == 0x10 || GameScreen() == 0x14, "Croc saved the day!")
+rich_presence_conditional_display(GameScreen() == 2 && Area() == 0, "Croc is {0} {1} ❤️[{2}/{3}] 🐊[{4}] 🏆[{5}/12]", 
     rich_presence_lookup("Screen", GameScreen(), PeteLookup),
     rich_presence_lookup("World", World(), WorldLookup),
     rich_presence_value("Digit", Health()),
@@ -307,14 +420,14 @@ rich_presence_conditional_display(InGameplay() == 1 && Area() == 0, "Croc is {0}
     rich_presence_value("Digit", Lives()),
     rich_presence_value("Digit", GoldenGobboCount())
 )
-rich_presence_conditional_display(InGameplay() == 1 && Area() == 4, "Croc is battling {0} ❤[{1}/{2}] 🐊[{3}] 🏆[{4}/12]", 
+rich_presence_conditional_display(Area() == 4, "Croc is battling {0} ❤️[{1}/{2}] 🐊[{3}] 🏆[{4}/12]", 
     rich_presence_lookup("Level", 5 * World() + Area(), AreaLookup),
     rich_presence_value("Digit", Health()),
     rich_presence_value("Digit", MaxHealth()),
     rich_presence_value("Digit", Lives()),
     rich_presence_value("Digit", GoldenGobboCount())
 )
-rich_presence_display("Croc is {0}at {1} ❤[{2}/{3}] 🐊[{4}] 💎[{5}/5] 🏆[{6}/12]",
+rich_presence_display("Croc is {0}at {1} ❤️[{2}/{3}] 🐊[{4}] 💎[{5}/5] 🏆[{6}/12]",
     rich_presence_lookup("Level", 5 * World() + Area(), AreaLookup),
     rich_presence_lookup("World", World(), WorldLookup),
     rich_presence_value("Digit", Health()),
