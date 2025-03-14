@@ -124,6 +124,12 @@ function Room() => byte(0x00CA7D)
 // $CA7E: [8-bit] Previous room
 function PrevRoom() => byte(0x00CA7E)
 
+// $CA9B: [8-bit] Croc X-Coordinate. From 0x00 to 0xff left to right
+function CrocX() => byte(0x00CA9B)
+
+// $CA9C: [8-bit] Croc Y-Coordinate. From 0x00 to 0xff top to bottom
+function CrocY() => byte(0x00CA9B)
+
 // $CAB4: [8-bit] Jewel count (Max 100)
 function Jewels() => byte(0x00CAB4)
 
@@ -170,17 +176,25 @@ function GameStarted(){
     return prev(GameScreen()) == 0x01 && GameScreen() == 0x02 && World() == 0 && Area() == 0 && Room() == 0 && LevelsComplete() == 0
 }
 
+function SpeedrunNoWalkOutClause(world, area, startRoom){
+    clause = prev(Room()) != startRoom
+    if(world == 0 && area == 1){
+        clause = prior(CrocX()) < 0x80  //Coordinates update before warp
+    }
+    return clause
+}
+
 function SpeedrunChallenge(world, area, startRoom, seconds){
     achievement(
         title = (world+1) + "-" + (area) + " Speedrun",
-        description = "Complete the level in less than " + seconds + " seconds.",
-        points = 0,
+        description = "Complete the " + levelNames[world][area-1] +" mission in " + villageNames[world] + " in under " + seconds + " seconds.",
+        points = 10,
         trigger = once(World() == world && prev(Area()) == 0 && Area() == area && BIOSCheck() != 0x50e0113e) &&
             never(GameScreen() == 0x0b) &&
             unless(IsPaused() == 0x01) &&
             never(tally(seconds * 60, Area() == area)) &&
             never(prev(Area()) != area && Area() != area) &&
-            trigger_when(prev(Area()) == area && Area() == 0 && prev(Room()) != startRoom)
+            trigger_when(prev(Area()) == area && Area() == 0 && SpeedrunNoWalkOutClause(world, area, startRoom))
     )
 }
 
@@ -194,7 +208,7 @@ villageNames = ["Sailor Village", "Cossack Village", "Caveman Village", "Inca Vi
 achievement(
     title = "Beat Sailor World",
     description = "Defeat Soveena the Squid to save Sailor Village",
-    points = 0,
+    points = 5,
     trigger = prev(SoveenaBeaten() == 0) && SoveenaBeaten() == 1 && World() == 0 && BIOSCheck() != 0x50e0113e,
     type = "progression"
 )
@@ -202,7 +216,7 @@ achievement(
 achievement(
     title = "Beat Cossack World",
     description = "Defeat the Lava Monster to save Cossack Village",
-    points = 0,
+    points = 5,
     trigger = prev(LavaMonsterBeaten() == 0) && LavaMonsterBeaten() == 1 && World() == 1 && BIOSCheck() != 0x50e0113e,
     type = "progression"
 )
@@ -210,7 +224,7 @@ achievement(
 achievement(
     title = "Beat Caveman World",
     description = "Defeat the Mad Scientist to save Caveman Village",
-    points = 0,
+    points = 5,
     trigger = prev(MadScientistBeaten() == 0) && MadScientistBeaten() == 1 && World() == 2 && BIOSCheck() != 0x50e0113e,
     type = "progression"
 )
@@ -218,7 +232,7 @@ achievement(
 achievement(
     title = "Beat Inca World",
     description = "Defeat Baron Dante",
-    points = 0,
+    points = 10,
     trigger = DanteDefeated() && BIOSCheck() != 0x50e0113e,
     type = "win_condition"
 )
@@ -226,7 +240,7 @@ achievement(
 achievement(
     title = "True Ending",
     description = "Get the true ending by defeating Baron Dante after collecting all Golden Gobbos",
-    points = 0,
+    points = 10,
     trigger = DanteDefeated() && GoldenGobbosSailor() == 0xe0 && GoldenGobbosCossack() == 0xe0 && GoldenGobbosCaveman() == 0xe0 && GoldenGobbosInca() == 0xe0 && BIOSCheck() != 0x50e0113e
 )
 
@@ -235,7 +249,7 @@ for i in range(0,3){
         achievement(
             title = "Golden Gobbo " + villageNames[i] + " " + j+1,
             description = "Find the Golden Gobbo in the " + levelNames[i][j] + " mission in " + villageNames[i] + ".",
-            points = 0,
+            points = 5,
             trigger = prev(bit(j+5, GoldenGobbosBaseAddress()+i)) == 0 && bit(j+5, GoldenGobbosBaseAddress()+i) == 1 && World() == i && Area() == j+1 && BIOSCheck() != 0x50e0113e
         )
     }
@@ -244,55 +258,55 @@ for i in range(0,3){
 achievement(
     title = "Heart Gift",
     description = "Receive a Heart Pot from a friendly gobbo",
-    points = 0,
+    points = 2,
     trigger = prev(MaxHealth()) == 0x03 && MaxHealth() == 0x04 && GameScreen() == 0x02 && World() == 0 && Area() == 0 && BIOSCheck() != 0x50e0113e
 )
 
 achievement(
     title = "Max Health",
     description = "Get 8 maximum health",
-    points = 0,
+    points = 5,
     trigger = prev(MaxHealth()) == 0x07 && MaxHealth() == 0x08 && BIOSCheck() != 0x50e0113e
 )
 
 achievement(
     title = "Max Lives",
     description = "Reach 10 total lives",
-    points = 0,
+    points = 5,
     trigger = prev(Lives() == 0x09) && Lives() == 0x0a && BIOSCheck() != 0x50e0113e
 )
 
 achievement(
     title = "Three Heart Run: Sailor World",
     description = "Defeat Soveena the Squid with only three max health",
-    points = 0,
+    points = 10,
     trigger = prev(SoveenaBeaten() == 0) && SoveenaBeaten() == 1 && World() == 0 && MaxHealth() == 3 && BIOSCheck() != 0x50e0113e
 )
 
 achievement(
     title = "Three Heart Run: Cossack World",
     description = "Defeat the Lava Monster with only three max health",
-    points = 0,
+    points = 10,
     trigger = prev(LavaMonsterBeaten() == 0) && LavaMonsterBeaten() == 1 && World() == 1 && MaxHealth() == 3 && BIOSCheck() != 0x50e0113e
 )
 
 achievement(
     title = "Three Heart Run: Caveman World",
     description = "Defeat the Mad Scientist with only three max health",
-    points = 0,
+    points = 10,
     trigger = prev(MadScientistBeaten() == 0) && MadScientistBeaten() == 1 && World() == 2 && MaxHealth() == 3 && BIOSCheck() != 0x50e0113e
 )
 
 achievement(
     title = "Three Heart Run: Inca World",
     description = "Defeat Baron Dante with only three max health",
-    points = 0,
+    points = 25,
     trigger = DanteDefeated() && MaxHealth() == 3 && BIOSCheck() != 0x50e0113e
 )
 
-SpeedrunChallenge(0, 1, 0, 60)
-SpeedrunChallenge(1, 3, 0, 105)
-SpeedrunChallenge(2, 1, 0, 45)
+SpeedrunChallenge(0, 1, 0, 65)
+SpeedrunChallenge(1, 3, 0, 110)
+SpeedrunChallenge(2, 1, 0, 60)
 SpeedrunChallenge(3, 3, 1, 50)
 
 // LEADERBOARDS
@@ -335,7 +349,7 @@ function ILSpeedrun(world, area){
             description = "Complete the level as fast as you can",
             start = World() == world && prev(Area()) == 0 && Area() == area && Room() == startRoom && BIOSCheck() != 0x50e0113e,
             cancel = (prev(Area()) != area && Area() != area) || GameScreen() == 0x0b,
-            submit = prev(Area()) == area && Area() == 0 && prev(Room()) != startRoom,
+            submit = prev(Area()) == area && Area() == 0 && SpeedrunNoWalkOutClause(world, area, startRoom),
             value = IsPaused() == 0,
             format = "FRAMES",
             lower_is_better = true
