@@ -346,7 +346,7 @@ function ILSpeedrun(world, area){
     if (area < 4){
         leaderboard(
             title = world+1 + "-" + area + " Speedrun",
-            description = "Complete the level as fast as you can",
+            description = "Complete the " + levelNames[world][area-1] + " mission in " + villageNames[world] + " as fast as you can",
             start = World() == world && prev(Area()) == 0 && Area() == area && Room() == startRoom && BIOSCheck() != 0x50e0113e,
             cancel = (prev(Area()) != area && Area() != area) || GameScreen() == 0x0b,
             submit = prev(Area()) == area && Area() == 0 && SpeedrunNoWalkOutClause(world, area, startRoom),
