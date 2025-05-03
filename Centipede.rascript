@@ -325,8 +325,8 @@ levelData = [["1-1", "The Firth of Fifth", ["Wee Citizen", "Wee House"]],
     ["6-5", "Your Back's Against No Wall", ["Talisman", "Prisoner"]],
     ["6-6", "Her Dread Power the Queen Pede", []]]
 
-function EndOfLevel() => prev(LevelClear()) == 0x00 && LevelClear() == 0x01 && prev(IsUnpaused()) == 0x01
-function EndOfScoring() => prev(LevelClear()) == 0x01 && LevelClear() == 0x00 && prev(IsUnpaused()) == 0x01
+function EndOfLevel() => prev(LevelClear()) == 0x00 && LevelClear() == 0x01 && InAdventure() == 0x01
+function EndOfScoring() => prev(LevelClear()) == 0x01 && LevelClear() == 0x00 && InAdventure() == 0x01
 
 function OnHard() => DifficultyA() == 0x01 && DifficultyB() == 0x8f
 
@@ -404,7 +404,7 @@ function LevelInterrupted() {
 }
 
 function LifeLost() {
-    return prev(IsDying()) == 0x01 && IsDying() == 0x00 && IsUnpaused() == 0x01
+    return prev(IsDying()) == 0x01 && IsDying() == 0x00 && InAdventure() == 0x01
 }
 
 function HighScoreSum() {
@@ -463,7 +463,7 @@ function LivesChallenge(levelNum, lifeTarget){
         description = "Beat " + levelData[levelNum][1] + " with a net increase of " + lifeTarget + " or more lives. (Not counting bonus points)",
         points = 10,
         trigger = LevelStartCheckpoint(levelNum) &&
-            unless(IsUnpaused() == 0x00 && LevelClear() == 0x00) &&
+            //unless(IsUnpaused() == 0x00 && LevelClear() == 0x00) &&
             never(LivesCheatEntered()) &&
             never(LevelTimer() <= 0x04) && 
             LevelID() == levelNum && InAdventure() == 0x01 &&
@@ -483,48 +483,48 @@ function AllLevelsScored() {
 achievement(
     title = "Test", points = 0,
     description = "Dummy achievement for testing various things",
-    trigger = dword(RecordedHighScoreBaseAddress() + (0x4c * LevelID())) > 0
+    trigger = prev(dword(LevelDataPointer() + 0)) + 1 == dword(LevelDataPointer() + 0)
 )
 
 achievement(
     title = "Beat Weedom [Wee Are Number One]", points = 5,
     description = "Complete the last level of Weedom and unlock Aridia",
     trigger = LevelsUnlocked() == 0x05 && LevelID() == 0x04 && prev(LevelClear()) == 0x00 && LevelClear() == 0x01 &&
-              prev(IsUnpaused() == 0x01)
+              InAdventure() == 0x01
 )
 
 achievement(
     title = "Beat Aridia", points = 5,
     description = "Complete the last level of Aridia and unlock Frostonia",
     trigger = LevelsUnlocked() == 0x0B && LevelID() == 0x0A && prev(LevelClear()) == 0x00 && LevelClear() == 0x01 &&
-              prev(IsUnpaused() == 0x01)
+              InAdventure() == 0x01
 )
 
 achievement(
     title = "Beat Frostonia [Wally Mammoth]", points = 5,
     description = "Complete the last level of Frostonia and unlock Infernium",
     trigger = LevelsUnlocked() == 0x11 && LevelID() == 0x10 && prev(LevelClear()) == 0x00 && LevelClear() == 0x01 &&
-              prev(IsUnpaused() == 0x01)
+              InAdventure() == 0x01
 )
 
 achievement(
     title = "Beat Infernium", points = 5,
     description = "Complete the last level of Infernium and unlock Enigma",
     trigger = LevelsUnlocked() == 0x17 && LevelID() == 0x16 && prev(LevelClear()) == 0x00 && LevelClear() == 0x01 &&
-              prev(IsUnpaused() == 0x01)
+              InAdventure() == 0x01
 )
 
 achievement(
     title = "Beat Enigma", points = 5,
     description = "Complete the last level of Enigma and unlock Evile",
     trigger = LevelsUnlocked() == 0x1D && LevelID() == 0x1C && prev(LevelClear()) == 0x00 && LevelClear() == 0x01 &&
-              prev(IsUnpaused() == 0x01)
+              InAdventure() == 0x01
 )
 
 achievement(
     title = "Beat Evile [Centennial Savior]", points = 10,
     description = "Destroy Queen Pede and end the centipede invasion",
-    trigger = LevelsUnlocked() == 0x23 && LevelID() == 0x22 && prev(InLevel()) == 0x01 && InLevel() == 0x00 && prev(IsUnpaused() == 0x01) && AllLevelsScored()
+    trigger = LevelsUnlocked() == 0x23 && LevelID() == 0x22 && prev(InLevel()) == 0x01 && InLevel() == 0x00 && InAdventure() == 0x01 && AllLevelsScored()
 )
 
 for i in range(0x00, 0x21){
@@ -555,7 +555,7 @@ achievement(
     description = "Beat " + levelData[0x22][1] + " with a net increase of " + EvileLifeChallengeCount + " or more lives. (Not counting bonus points)",
     points = 10,
     trigger = LevelStartCheckpoint(0x22) &&
-        unless(IsUnpaused() == 0x00 && InLevel() == 0x01) &&
+        //unless(IsUnpaused() == 0x00 && InLevel() == 0x01) &&
         never(LivesCheatEntered()) &&
         never(LevelTimer() <= 0x04) && 
         LevelID() == 0x22 && InAdventure() == 0x01 &&
