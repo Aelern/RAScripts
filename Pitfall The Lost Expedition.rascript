@@ -2,8 +2,11 @@
 // #ID = 30552
 // #MinimumVersion=1.3.1
 
+gc_tax = 0x80000000
+pointer_mask = 0x1fffffff
 
-// $132CEE: [8-bit] Explorer idol reward
+
+// $132CEF: [8-bit] Number of idols an Explorer Idol is worth
 function ExplorerIdolReward() => byte(0x132CEE)
 
 // $3D75E0: [32-bit BE] Aspect Ratio
@@ -57,21 +60,22 @@ function GasMask() => dword_be(0x41A2F0)
 // $41A2FC: [32-bit BE] Canteen Pointer
 //          +0x5c for amount
 //          +0x60 for capacity
-function CanteenPointer() => dword_be(0x41A2FC)
+function CanteenPointer() => dword_be(0x41A2FC)-0x80000000
 
 // $41A30C: [32-bit BE] Canteen unlocked
 function Canteen() => dword_be(0x41A30C)
 
 // $41A318: [32-bit BE] Stink Bomb pointer
-function StinkBombPointer() => dword_be(0x41A318)
+function StinkBombPointer() => dword_be(0x41A318)-0x80000000
 
 // $41BE4C: [32-bit BE] Harry pointer
 //          +0x338 X position
 //          +0x33C Y position
 //          +0x340 Z position (height)
 //          +0x658 Health capacity
-//          +0x680 In a cutscene
 //          +0x65C Health count
+//          +0x680 Is inactionable
+//          +0x79c Harry's State
 //          +0x960 Invincibility
 //          +0x970 Equipped items
 //          ++0x0 Top item
@@ -85,7 +89,23 @@ function StinkBombPointer() => dword_be(0x41A318)
 //          +0x1978 Heroic dash
 //          +0x1980 Heroic dive
 //          +0x1988 Smash Strike
-function HarryPointer() => dword_be(0x41BE4C)
+function HarryPointer() => dword_be(0x41BE4C) & pointer_mask
+function MaxHealth() => dword_be(HarryPointer() + 0x658)
+function CurrentHealth() => dword_be(HarryPointer() + 0x65C)
+function Inactionable() => dword_be(HarryPointer() + 0x680)
+function HarryState() => dword_be(HarryPointer() + 0x79c)
+function TopItem() => dword_be(dword_be(HarryPointer() + 0x970) & pointer_mask)
+function RightItem() => dword_be(dword_be(HarryPointer() + 0x970) & pointer_mask + 0x4)
+function BottomItem() => dword_be(dword_be(HarryPointer() + 0x970) & pointer_mask + 0x8)
+function LeftItem() => dword_be(dword_be(HarryPointer() + 0x970) & pointer_mask + 0x4c)
+function IdolCount() => dword_be(HarryPointer() + 0x195c)
+function RisingStrike() => dword_be(HarryPointer() + 0x1960)
+function SuperSling() => dword_be(HarryPointer() + 0x1968)
+function Breakdance() => dword_be(HarryPointer() + 0x1970)
+function HeroicDash() => dword_be(HarryPointer() + 0x1970)
+function HeroicDive() => dword_be(HarryPointer() + 0x1980)
+function SmashStrike() => dword_be(HarryPointer() + 0x1988)
+function Invincible() => dword_be(HarryPointer() + 0x960)
 
 // $41BEB0: [32-bit] Transitioning maps
 function MapTransition() => dword(0x41BEB0)
@@ -93,11 +113,22 @@ function MapTransition() => dword(0x41BEB0)
 // $41BEB4: [32-bit BE] Current map
 function Map() => dword_be(0x41BEB4)
 
+// $41BEE0: [32-bit BE] UI Pointer
+//          +0xf8
+//          ++0x130 = Current displayed health
+//          +0x108
+//          ++0xd8 = Butterflies remaining
+function UIPointer() => dword_be(0x41BEE0) & pointer_mask
+function DisplayedHealth() => dword_be(dword_be(UIPointer() + 0xf8) + 0x130)
+
 // $41BEF8: [32-bit BE] Updates with the map ID when moving to a new region, but remains 0 when loading game.
 function FauxMap() => dword_be(0x41BEF8)
 
 // $421168: [32-bit BE] Is loading
 function Loading() => dword_be(0x421168)
+
+// $425E50: [32-bit BE] Playing a classic Pitfall game. See also 0x004cbe78
+function PlayingRetroGame() => dword_be(0x425E50)
 
 // $427408: [Bitfield] Face Buttons
 //          Bit 0: A Button
@@ -171,9 +202,26 @@ function Hyperpunch() => dword_be(0x45D9C0)
 //          See also 0x0083276f and 0x0083277f
 function HintsVisible() => dword_be(0x4CB78C)
 
+// $4CBA08: [32-bit BE] Pointer to Atari emulation
+//          +0x08		4 if playing Pitfall, 0 if playing Pitfall 2
+//          +0x14		
+//          ++0x104	
+//          +++0x42fc8
+//          ++++0x50
+//          +++++0x00 = Atari Emulated memory. All addresses same as in original Atari
+function AtariPointer() => dword_be(0x4cba08) & pointer_mask
+playing_pitfall_1 = dword_be(AtariPointer() + 0x08) == 0x04
+playing_pitfall_2 = dword_be(AtariPointer() + 0x08) == 0x00
+function AtariMemoryBase() => (dword_be((dword_be((dword_be((dword_be(AtariPointer() + 0x14) & pointer_mask)
+     + 0x104) & pointer_mask)
+     + 0x42fc8) & pointer_mask)
+     + 0x50) & pointer_mask)
+
 // $4CCE68: [32-bit BE] Pointer to pointer to object tree start point
 //          +0xc Pointer to object tree start point
-function TreeRootPointer() => tbyte_be(0x4CCE68)
+function TreeRootPointer() => dword_be(0x4CCE68)
+
+function TreeRoot() => dword_be((TreeRootPointer() & pointer_mask) + 0x0c) & pointer_mask
 
 // $832760: [32-bit BE] Head of the object table
 function ObjectTableHead() => dword_be(0x832760)
@@ -197,7 +245,7 @@ MapIDs = {
     "The Altar of Ages": 0xABD7CCD8,
     "Altar of Huitaca": 0x70EBFCA3,
     "Ancient El Dorado (Pusca)": 0xCFD2FE10,
-    "Apu Illapu Shrine (Spinjas)": 0x5511C46C,
+    "Apu Illapu Shrine": 0x5511C46C,
     "Battered Bridge": 0x69F0CDE2,
     "Bittenbinder's Camp": 0x0EF63551,
     "Butterfly Glade": 0xCD944049,
@@ -257,13 +305,257 @@ MapIDs = {
 }
 
 
+ChapterTitles = ["Welcome to the Jungle",
+    "The Rescue Mission Begins",
+    "A Torch to Light the Way",
+    "Extending the Olive Branch",
+    "A Princess in Danger",
+    "The Royal Welcome",
+    "Into Hostile Territory",
+    "The Snowy Mountains Await",
+    "The Search for the Caverns",
+    "The Mission Gets Personal",
+    "A Fork in the Road",
+    "Revisiting Old Haunts",
+    "The Mystery Deepens",
+    "A Desperate Plan",
+    "The Road to El Dorado"]
+
+in_gameplay = HarryPointer() != 0x00000000
+stopped_gameplay = prev(HarryPointer()) != 0x00000000 && HarryPointer() == 0x00000000
+
+gained_sling = prev(Sling()) == 0x00 && Sling() == 0x01
+gained_rising_strike = prev(RisingStrike()) == 0x00 && RisingStrike() == 0x01
+gained_torch = prev(Torch()) == 0x00 && Torch() == 0x01
+gained_shield = prev(Shield()) == 0x00 && Shield() == 0x01
+lost_shield = prev(Shield()) == 0x01 && Shield() == 0x00
+gained_gas_mask = prev(GasMask()) == 0x00 && GasMask() == 0x01
+gained_raft = prev(Raft()) == 0x00 && Raft() == 0x01
+gained_TNT = prev(TNT()) == 0x00 && TNT() == 0x01
+
+finished_cutscene = prev(HarryState()) == 0x76 && HarryState() != 0x76
+entering_map = HarryState() == 0x58
+
+function inMap(mapName){
+    return Map() == MapIDs[mapName]
+}
+
+function leftMap(mapName){
+    return prev(Map()) == MapIDs[mapName] &&
+        Map() != MapIDs[mapName]
+}
+
+function finishNthCutscene(cutscene_count, map_name){   //Bittenbinder's Camp can be entered by swimming
+    return repeated(cutscene_count, 
+        finished_cutscene &&
+        inMap(map_name) &&
+        never(entering_map &&
+        inMap(map_name)))
+}
+finish_torch_cutscene = once(gained_torch &&
+    never(entering_map)) &&
+    finished_cutscene &&
+    inMap("Mouth of Inti")
+
+grabbed_key_item = prev(HarryState()) == 0x53 && HarryState() == 0x76
+
+finished_initiation = once(gained_shield) &&
+    repeated(2, finished_cutscene &&
+        inMap("Native Village") &&
+        Shield() == 0x01) &&
+        never(lost_shield || 
+        leftMap("Native Village") ||
+        stopped_gameplay)
+
+achievement(
+    title = ChapterTitles[0],   //Change to cutscene after getting sling?
+    description = "Follow the tracks to Bittenbinder's Camp",
+    points = 5,
+    trigger = in_gameplay && 
+        finishNthCutscene(3, "Bittenbinder's Camp"),
+    type = "progression"
+)
+
+achievement(
+    title = ChapterTitles[1],
+    description = "Get Nicole out of the Tree",
+    points = 5,
+    trigger = in_gameplay &&
+        finish_torch_cutscene,
+    type = "progression"
+)
+
+achievement(
+    title = ChapterTitles[2],
+    description = "Find an ancient artifact inside Monkey Temple",
+    points = 5,
+    trigger = in_gameplay && 
+        grabbed_key_item &&
+        inMap("Monkey Temple (Harry)"),
+    type = "progression"
+)
+
+achievement(
+    title = ChapterTitles[3],
+    description = "Make contact with the Native tribe",
+    points = 2,
+    trigger = in_gameplay &&
+        inMap("Native Village"),
+    type = "progression"
+)
+
+achievement(
+    title = ChapterTitles[4],
+    description = "See Princess Micay returned to her village",
+    points = 5,
+    trigger = in_gameplay && 
+        inMap("Butterfly Glade"),
+    type = "progression"
+)
+
+achievement(
+    title = ChapterTitles[5],
+    description = "Get initiated into the Native tribe",
+    points = 1,
+    trigger = in_gameplay && 
+        finished_initiation &&
+        inMap("Native Village"),
+    type = "progression"
+)
+
+achievement(
+    title = ChapterTitles[6],
+    description = "Recover a gas mask from the Renegade Headquarters",
+    points = 5,
+    trigger = in_gameplay && 
+        gained_gas_mask &&
+        inMap("Renegade Headquarters"),
+    type = "progression"
+)
+
+achievement(
+    title = ChapterTitles[7],
+    description = "Rescue Leech at the Cavern Lake",
+    points = 5,
+    trigger = in_gameplay && 
+        gained_raft &&
+        inMap("Cavern Lake"),
+    type = "progression"
+)
+
+achievement(
+    title = ChapterTitles[8],
+    description = "Find an ancient artifact inside Scorpion Temple",
+    points = 5,
+    trigger = in_gameplay && 
+        grabbed_key_item &&
+        inMap("Scorpion Temple (Harry)"),
+    type = "progression"
+)
+
+achievement(
+    title = ChapterTitles[9],
+    description = "Find an ancient artifact inside Penguin Temple",
+    points = 5,
+    trigger = in_gameplay && 
+        grabbed_key_item &&
+        inMap("Penguin Temple (Harry)"),
+    type = "progression"
+)
+
+achievement(
+    title = ChapterTitles[10],
+    description = "Rescue Mole in the heart of the Snowy Mountains",
+    points = 5,
+    trigger = in_gameplay && 
+        gained_TNT &&
+        inMap("Apu Illapu Shrine"),
+    type = "progression"
+)
+
+achievement(
+    title = ChapterTitles[11],
+    description = "Seek an ancient artifact inside Chameleon Temple",
+    points = 5,
+    trigger = in_gameplay && 
+        finishNthCutscene(2, "Chameleon Temple") &&
+        inMap("Chameleon Temple"),
+    type = "progression"
+)
+
+achievement(
+    title = ChapterTitles[12],
+    description = "Hear the whole story from Princess Micay",
+    points = 5,
+    trigger = in_gameplay && 
+        finishNthCutscene(3, "The Altar of Ages") &&
+        inMap("The Altar of Ages"),
+    type = "progression"
+)
+
+achievement(
+    title = ChapterTitles[13],
+    description = "Gather up what St. Claire has collected",
+    points = 5,
+    trigger = in_gameplay && 
+        gained_TNT &&
+        inMap("St. Claire's Excavation Camp (Night)"),
+    type = "progression"
+)
+
+achievement(
+    title = ChapterTitles[14],
+    description = "Save El Dorado from Spanish invasion, and from Pusca",
+    points = 10,
+    trigger = in_gameplay && 
+        gained_TNT &&
+        inMap("Ancient El Dorado (Pusca)"),
+    type = "win_condition"
+)
+
+/*
+achievement(
+    title = "Retro Score Test",
+    description = "Achievements are easier than RP",
+    points = 0,
+    trigger = prev(pitfall_1_score) <= 2000 && pitfall_1_score > 2000
+)
+*/
+
+/*
+search_key = 0x290ae8fb
+
+achievement(
+    title = "Testing a Single Tree Step",
+    description = "Please",
+    points = 0,
+    trigger = TreeRoot() == 0x0081a980
+)
+
+achievement(
+    title = "Testing a Single Tree Step Part 2",
+    description = "Please",
+    points = 0,
+    trigger = TreeRoot() + 
+        (((TreeRoot() - dword_be(TreeRoot()) + bit(31, dword_be(TreeRoot() + 0x18) - search_key) * 4) *
+        ((dword_be(TreeRoot() + 0x18) - search_key)/(dword_be(TreeRoot() + 0x18) - search_key))) == 0x00817980 &&
+        Map() == MapIDs["Crash Site"]
+)
+*/
+
+
 // ---------------------------------------------------------------------------------------------  RICH PRESENCE  ---------------------------------------------------------------------------------------------
+
+// TODO
+//  -Classic Pitfall games in both main menu and Punchau
+//  -Add emojis for Equipped items?  🥤🪨🔥🛡️🤿🚣⛏️💣🤢
+
 rp_maps = {
     MapIDs["Abandoned Cavern"]: "exploring the Abandoned Cavern",
     MapIDs["The Altar of Ages"]: "exploring The Altar of Ages",
     MapIDs["Altar of Huitaca"]: "exploring the Altar of Huitaca",
     MapIDs["Ancient El Dorado (Pusca)"]: "battling Pusca in Ancient El Dorado",
-    MapIDs["Apu Illapu Shrine (Spinjas)"]: "exploring the Apu Illapu Shrine",
+    MapIDs["Apu Illapu Shrine"]: "exploring the Apu Illapu Shrine",
     MapIDs["Battered Bridge"]: "exploring the Battered Bridge",
     MapIDs["Bittenbinder's Camp"]: "exploring Bittenbinder's Camp",
     MapIDs["Butterfly Glade"]: "exploring the Butterfly Glade",
@@ -302,7 +594,7 @@ rp_maps = {
     MapIDs["Raft Bowling"]: "playing Raft Bowling",
     MapIDs["Renegade Fort"]: "exploring the Renegade Fort",
     MapIDs["Renegade Headquarters"]: "exploring the Renegade Headquarters",
-    MapIDs["Ruins of El Dorado (Supai/Jaguar)"]: "battling Supai in the ruins of El Dorado",
+    MapIDs["Ruins of El Dorado (Supai/Jaguar)"]: "battling a demonic jaguar in the ruins of El Dorado",
     MapIDs["Scorpion Temple (Harry)"]: "exploring the Scorpion Temple",
     MapIDs["Scorpion Temple (Spirit)"]: "fighting for his soul in the Scorpion Temple",
     MapIDs["Spinja Lair"]: "exploring the Spinja Lair",
@@ -321,3 +613,59 @@ rp_maps = {
     MapIDs["Whack-A-Tuco"]: "playing Whack-A-Tuco",
     MapIDs["White Valley"]: "exploring the White Valley"
 }
+
+function RPCharacter() => RetroHarry() + NativeHarry()*2 + NicoleHarry()*3
+characters = { 0: "Harry", 1: "Retro Harry", 2: "A Native", 3: "Nicole"}
+
+in_initial_jaguar_fight = inMap("Ruins of El Dorado (Supai/Jaguar)") && TNT() == 0
+
+pitfall_1_lives = 1 + bit5(AtariMemoryBase()) + bit7(AtariMemoryBase())
+pitfall_1_score = bcd(byte(AtariMemoryBase()+0x55)) * 10000 + 
+    bcd(byte(AtariMemoryBase()+0x56)) * 100 + 
+    bcd(byte(AtariMemoryBase()+0x57))
+pitfall_1_minutes = bcd(byte(AtariMemoryBase() + 0x58))
+pitfall_1_seconds = bcd(byte(AtariMemoryBase() + 0x59))
+pitfall_1_treasures = bitcount(AtariMemoryBase() + 0x6d) + 
+    bitcount(AtariMemoryBase() + 0x6e) + 
+    bitcount(AtariMemoryBase() + 0x6f) + 
+    bitcount(AtariMemoryBase() + 0x70)
+pitfall_2_score = bcd(byte(AtariMemoryBase()+0x47)) * 10000 + 
+    bcd(byte(AtariMemoryBase()+0x48)) * 100 + 
+    bcd(byte(AtariMemoryBase()+0x49))
+pitfall_2_quickclaw = bit6(AtariMemoryBase() + 0x6f)
+pitfall_2_rhonda = bit6(AtariMemoryBase() + 0x70)
+pitfall_2_raj_diamond = bit6(AtariMemoryBase() + 0x71)
+pitfall_2_treasures = bitcount(AtariMemoryBase() + 0x6f) - pitfall_2_quickclaw +
+    bitcount(AtariMemoryBase() + 0x70) - pitfall_2_rhonda +
+    bitcount(AtariMemoryBase() + 0x71) - pitfall_2_raj_diamond +
+    bitcount(AtariMemoryBase() + 0x72)
+
+p2_rhonda = { 0: "", 1: " 👧"}
+p2_quickclaw = { 0: "", 1: " 🐱"}
+p2_raj_diamond = { 0: "", 1: " 💎"}
+
+rich_presence_conditional_display(PlayingRetroGame() == 0x01 && playing_pitfall_1, "Playing Pitfall! | 🏃{0} | 💯{1} | ⏰{2} | 💰{3}/32",
+    rich_presence_value("Pitfall Lives", pitfall_1_lives),
+    rich_presence_value("Pitfall Score", pitfall_1_score),
+    rich_presence_value("Pitfall Time", pitfall_1_minutes * 60 + pitfall_1_seconds, "SECS"),
+    rich_presence_value("Pitfall Loot", pitfall_1_treasures)
+)
+rich_presence_conditional_display(PlayingRetroGame() == 0x01 && playing_pitfall_2, "Playing Pitfall II: Lost Caverns | 💯{0} | 💰{1}/28{2}{3}{4}",
+    rich_presence_value("Pitfall 2 Score", pitfall_2_score),
+    rich_presence_value("Pitfall 2 Treasure", pitfall_2_treasures),
+    rich_presence_lookup("Pitfall 2 Rhonda", pitfall_2_rhonda, p2_rhonda),
+    rich_presence_lookup("Pitfall 2 Quickclaw", pitfall_2_quickclaw, p2_quickclaw),
+    rich_presence_lookup("Pitfall 2 Diamond", pitfall_2_raj_diamond, p2_raj_diamond)
+)
+rich_presence_conditional_display(!in_gameplay && Loading() == 0x01, "Now Loading...")
+rich_presence_conditional_display(!in_gameplay, "On the Main Menu")
+rich_presence_conditional_display(in_initial_jaguar_fight, "{0} is fighting a demonic jaguar",
+    rich_presence_lookup("Character", RPCharacter(), characters)
+)
+rich_presence_display("{0} is {1} | ❤️{2}/{3} | 🗿{4}",
+    rich_presence_lookup("Character", RPCharacter(), characters),
+    rich_presence_lookup("Map", Map(), rp_maps),
+    rich_presence_value("Health", CurrentHealth()),
+    rich_presence_value("Max Health", MaxHealth()),
+    rich_presence_value("Spare Idols", IdolCount())
+)
