@@ -2,7 +2,6 @@
 // #ID = 30552
 // #MinimumVersion=1.3.1
 
-gc_tax = 0x80000000
 pointer_mask = 0x1fffffff
 
 
@@ -60,13 +59,20 @@ function GasMask() => dword_be(0x41A2F0)
 // $41A2FC: [32-bit BE] Canteen Pointer
 //          +0x5c for amount
 //          +0x60 for capacity
-function CanteenPointer() => dword_be(0x41A2FC)-0x80000000
+function CanteenPointer() => dword_be(0x41A2FC) & pointer_mask
+function CanteenCapacity() => dword_be(CanteenPointer() + 0x60)
 
 // $41A30C: [32-bit BE] Canteen unlocked
 function Canteen() => dword_be(0x41A30C)
 
 // $41A318: [32-bit BE] Stink Bomb pointer
-function StinkBombPointer() => dword_be(0x41A318)-0x80000000
+function StinkBombPointer() => dword_be(0x41A318) & pointer_mask
+
+// $41A5CC: [32-bit BE] Connected to confirmable message prompts. Notably displays 0x43890000 into 0x439b8000 when unlocking Pitfall! from the shaman shop (before and after press A to confirm dialogue) and 0x43aa8000 into 0x43bc8000 when unlocking Pitfall 2. Maintains value until used again. See also 0x0041a5cc
+function LastMessageBoxProperty() => dword_be(0x41A5CC)
+
+// $41A5EC: [32-bit BE] Connected to confirmable message prompts. Notably displays 0x43700000 into 0x438c4000 when unlocking Pitfall! from the shaman shop (before and after press A to confirm dialogue) and 0x43998000 into 0x43ad4000 when unlocking Pitfall 2. Cleared when not in use. See also 0x0041a5cc
+function MessageBoxProperty() => dword_be(0x41A5EC)
 
 // $41BE4C: [32-bit BE] Harry pointer
 //          +0x338 X position
@@ -197,10 +203,19 @@ function BottomlessCanteen() => dword_be(0x45D9BC)
 
 // $45D9C0: [32-bit BE] Hyperpunch cheat
 function Hyperpunch() => dword_be(0x45D9C0)
+no_illegal_cheats = BottomlessCanteen() == 0x00 && Hyperpunch() == 0x00 && SlowMo() == 0x00 && SuperSlowMo() == 0x00
+
+// $45E0AC: [32-bit BE] Flips from 0x48 to 0x08 on chapter start map scene and in Shaman Shop. Also periodically flips when sling equipped in Mouth of Inti.
+function ForcedMenu() => dword_be(0x45E0AC)
 
 // $4CB78C: [32-bit BE] Corresponds to Hints Visible option. Visible is 0, hidden is 1
 //          See also 0x0083276f and 0x0083277f
 function HintsVisible() => dword_be(0x4CB78C)
+
+// $4CB940: [32-bit BE] Pusca pointer
+//          +0x68c = Pusca's HP
+function PuscaPointer() => dword_be(0x4CB940) & pointer_mask
+function PuscaHP() => dword_be(PuscaPointer() + 0x68c)
 
 // $4CBA08: [32-bit BE] Pointer to Atari emulation
 //          +0x08		4 if playing Pitfall, 0 if playing Pitfall 2
@@ -212,6 +227,7 @@ function HintsVisible() => dword_be(0x4CB78C)
 function AtariPointer() => dword_be(0x4cba08) & pointer_mask
 playing_pitfall_1 = dword_be(AtariPointer() + 0x08) == 0x04
 playing_pitfall_2 = dword_be(AtariPointer() + 0x08) == 0x00
+
 function AtariMemoryBase() => (dword_be((dword_be((dword_be((dword_be(AtariPointer() + 0x14) & pointer_mask)
      + 0x104) & pointer_mask)
      + 0x42fc8) & pointer_mask)
@@ -336,6 +352,9 @@ gained_TNT = prev(TNT()) == 0x00 && TNT() == 0x01
 finished_cutscene = prev(HarryState()) == 0x76 && HarryState() != 0x76
 entering_map = HarryState() == 0x58
 
+//chapter_start = prev(ForcedMenu()) != 0x08 && ForcedMenu() == 0x08 && prior(PauseTracker()) == 0x01 && PauseTracker() == 0x02
+chapter_start = prev(PauseTracker()) == 0x00 && PauseTracker() == 0x01 && prev(HarryState()) == 0x76
+
 function inMap(mapName){
     return Map() == MapIDs[mapName]
 }
@@ -367,12 +386,53 @@ finished_initiation = once(gained_shield) &&
         leftMap("Native Village") ||
         stopped_gameplay)
 
+pitfall_1_lives = 1 + bit5(AtariMemoryBase()) + bit7(AtariMemoryBase())
+pitfall_1_score = bcd(byte(AtariMemoryBase()+0x55)) * 10000 + 
+    bcd(byte(AtariMemoryBase()+0x56)) * 100 + 
+    bcd(byte(AtariMemoryBase()+0x57))
+pitfall_1_minutes = bcd(byte(AtariMemoryBase() + 0x58))
+pitfall_1_seconds = bcd(byte(AtariMemoryBase() + 0x59))
+pitfall_1_treasures = bitcount(AtariMemoryBase() + 0x6d) + 
+    bitcount(AtariMemoryBase() + 0x6e) + 
+    bitcount(AtariMemoryBase() + 0x6f) + 
+    bitcount(AtariMemoryBase() + 0x70)
+pitfall_2_score = bcd(byte(AtariMemoryBase()+0x47)) * 10000 + 
+    bcd(byte(AtariMemoryBase()+0x48)) * 100 + 
+    bcd(byte(AtariMemoryBase()+0x49))
+pitfall_2_quickclaw = bit6(AtariMemoryBase() + 0x6f)
+pitfall_2_rhonda = bit6(AtariMemoryBase() + 0x70)
+pitfall_2_raj_diamond = bit6(AtariMemoryBase() + 0x71)
+pitfall_2_treasures = bitcount(AtariMemoryBase() + 0x6f) - pitfall_2_quickclaw +
+    bitcount(AtariMemoryBase() + 0x70) - pitfall_2_rhonda +
+    bitcount(AtariMemoryBase() + 0x71) - pitfall_2_raj_diamond +
+    bitcount(AtariMemoryBase() + 0x72)
+
 achievement(
-    title = ChapterTitles[0],   //Change to cutscene after getting sling?
+    title = "Testing chapter start detector",
+    description = "Making sure this behaves as I expect",
+    points = 0,
+    trigger = chapter_start
+)
+
+achievement(
+    title = "The Lost Expeditioner",
+    description = "Follow the flares to find another survivor",
+    points = 5,
+    trigger = in_gameplay && 
+        no_illegal_cheats &&
+        chapter_start &&
+        inMap("Plane Cockpit"),
+    type = "progression"
+)
+
+achievement(
+    title = ChapterTitles[0],
     description = "Follow the tracks to Bittenbinder's Camp",
     points = 5,
     trigger = in_gameplay && 
-        finishNthCutscene(3, "Bittenbinder's Camp"),
+        no_illegal_cheats &&
+        chapter_start &&
+        inMap("Bittenbinder's Camp"),
     type = "progression"
 )
 
@@ -381,7 +441,9 @@ achievement(
     description = "Get Nicole out of the Tree",
     points = 5,
     trigger = in_gameplay &&
-        finish_torch_cutscene,
+        no_illegal_cheats &&
+        chapter_start &&
+        inMap("Mouth of Inti"),
     type = "progression"
 )
 
@@ -390,6 +452,7 @@ achievement(
     description = "Find an ancient artifact inside Monkey Temple",
     points = 5,
     trigger = in_gameplay && 
+        no_illegal_cheats &&
         grabbed_key_item &&
         inMap("Monkey Temple (Harry)"),
     type = "progression"
@@ -399,16 +462,21 @@ achievement(
     title = ChapterTitles[3],
     description = "Make contact with the Native tribe",
     points = 2,
-    trigger = in_gameplay &&
-        inMap("Native Village"),
+    trigger = in_gameplay && 
+        no_illegal_cheats &&
+        chapter_start &&
+        inMap("Native Village") &&
+        Shield() == 0x00,
     type = "progression"
 )
 
 achievement(
     title = ChapterTitles[4],
     description = "See Princess Micay returned to her village",
-    points = 5,
+    points = 2,
     trigger = in_gameplay && 
+        no_illegal_cheats &&
+        chapter_start &&
         inMap("Butterfly Glade"),
     type = "progression"
 )
@@ -418,8 +486,10 @@ achievement(
     description = "Get initiated into the Native tribe",
     points = 1,
     trigger = in_gameplay && 
-        finished_initiation &&
-        inMap("Native Village"),
+        no_illegal_cheats &&
+        chapter_start &&
+        inMap("Native Village") &&
+        Shield() == 0x01,
     type = "progression"
 )
 
@@ -428,6 +498,7 @@ achievement(
     description = "Recover a gas mask from the Renegade Headquarters",
     points = 5,
     trigger = in_gameplay && 
+        no_illegal_cheats &&
         gained_gas_mask &&
         inMap("Renegade Headquarters"),
     type = "progression"
@@ -438,7 +509,8 @@ achievement(
     description = "Rescue Leech at the Cavern Lake",
     points = 5,
     trigger = in_gameplay && 
-        gained_raft &&
+        no_illegal_cheats &&
+        chapter_start &&
         inMap("Cavern Lake"),
     type = "progression"
 )
@@ -448,6 +520,7 @@ achievement(
     description = "Find an ancient artifact inside Scorpion Temple",
     points = 5,
     trigger = in_gameplay && 
+        no_illegal_cheats &&
         grabbed_key_item &&
         inMap("Scorpion Temple (Harry)"),
     type = "progression"
@@ -458,6 +531,7 @@ achievement(
     description = "Find an ancient artifact inside Penguin Temple",
     points = 5,
     trigger = in_gameplay && 
+        no_illegal_cheats &&
         grabbed_key_item &&
         inMap("Penguin Temple (Harry)"),
     type = "progression"
@@ -468,7 +542,8 @@ achievement(
     description = "Rescue Mole in the heart of the Snowy Mountains",
     points = 5,
     trigger = in_gameplay && 
-        gained_TNT &&
+        no_illegal_cheats &&
+        chapter_start &&
         inMap("Apu Illapu Shrine"),
     type = "progression"
 )
@@ -476,9 +551,10 @@ achievement(
 achievement(
     title = ChapterTitles[11],
     description = "Seek an ancient artifact inside Chameleon Temple",
-    points = 5,
+    points = 1,
     trigger = in_gameplay && 
-        finishNthCutscene(2, "Chameleon Temple") &&
+        no_illegal_cheats &&
+        chapter_start &&
         inMap("Chameleon Temple"),
     type = "progression"
 )
@@ -486,19 +562,21 @@ achievement(
 achievement(
     title = ChapterTitles[12],
     description = "Hear the whole story from Princess Micay",
-    points = 5,
+    points = 1,
     trigger = in_gameplay && 
-        finishNthCutscene(3, "The Altar of Ages") &&
+        no_illegal_cheats &&
+        chapter_start &&
         inMap("The Altar of Ages"),
     type = "progression"
 )
 
 achievement(
     title = ChapterTitles[13],
-    description = "Gather up what St. Claire has collected",
+    description = "Gather the treasures St. Claire has collected",
     points = 5,
     trigger = in_gameplay && 
-        gained_TNT &&
+        no_illegal_cheats &&
+        chapter_start &&
         inMap("St. Claire's Excavation Camp (Night)"),
     type = "progression"
 )
@@ -508,9 +586,71 @@ achievement(
     description = "Save El Dorado from Spanish invasion, and from Pusca",
     points = 10,
     trigger = in_gameplay && 
-        gained_TNT &&
-        inMap("Ancient El Dorado (Pusca)"),
+        no_illegal_cheats &&
+        inMap("Ancient El Dorado (Pusca)") &&
+        prev(PuscaHP()) == 0x01 &&
+        PuscaHP() == 0x00,
     type = "win_condition"
+)
+
+achievement(
+    title = "Pitfall Healthy",
+    description = "Max out your health bar",
+    points = 10,
+    trigger = in_gameplay &&
+        prev(MaxHealth()) == 0x09 &&
+        MaxHealth() == 0x0a
+)
+
+achievement(
+    title = "Stay Hydrated",
+    description = "Max out your canteen capacity",
+    points = 10,
+    trigger = in_gameplay &&
+        prev(CanteenCapacity()) == 0x09 &&
+        CanteenCapacity() == 0x0a
+)
+
+achievement(
+    title = "It Helps You Be Heroic, Or a Handbook",
+    description = "Gather all the pages of the Heroic Handbook",
+    points = 10,
+    trigger = in_gameplay &&
+        prev(HeroicDash()) + prev(SuperSling()) + prev(HeroicDive()) + prev(RisingStrike()) + prev(Breakdance()) + prev(SmashStrike()) == 5 &&
+        HeroicDash() + SuperSling() + HeroicDive() + RisingStrike() + Breakdance() + SmashStrike() == 6
+)
+
+all_trackable_upgrades = MaxHealth() == 0x0a && 
+    CanteenCapacity() == 0x0a &&
+    SmashStrike() == 0x01 && 
+    SuperSling() == 0x01 && 
+    Breakdance() == 0x01
+
+function PitfallAccess() => once(prev(PauseTracker()) == 0x07 && PauseTracker() == 0x02) && 
+    prev(PauseTracker()) == 0x00 && PauseTracker() == 0x04 &&
+    never(once(prev(PauseTracker()) == 0x07 && PauseTracker() == 0x02) &&
+        tally(300, PauseTracker() == 0x00)
+    )
+
+achievement(
+    title = "Worth My Weight In Gold, Apparently",
+    description = "Get a bonus prize for purchasing all the Shaman's wares",
+    points = 25,
+    trigger = in_gameplay && 
+        PitfallAccess() &&
+        MessageBoxProperty() == 0x43998000 &&
+        all_trackable_upgrades &&
+        LastMessageBoxProperty() == 0x43aa8000
+)
+
+achievement(
+    title = "Bonafide Explorer",
+    description = "Join the Explorer's Club by surpassing a score of 20,000 in Pitfall!",
+    points = 5,
+    trigger = PlayingRetroGame() == 0x01 &&
+        playing_pitfall_1 &&
+        prev(pitfall_1_score) < 20000 &&
+        pitfall_1_score >= 20000
 )
 
 /*
@@ -619,30 +759,15 @@ characters = { 0: "Harry", 1: "Retro Harry", 2: "A Native", 3: "Nicole"}
 
 in_initial_jaguar_fight = inMap("Ruins of El Dorado (Supai/Jaguar)") && TNT() == 0
 
-pitfall_1_lives = 1 + bit5(AtariMemoryBase()) + bit7(AtariMemoryBase())
-pitfall_1_score = bcd(byte(AtariMemoryBase()+0x55)) * 10000 + 
-    bcd(byte(AtariMemoryBase()+0x56)) * 100 + 
-    bcd(byte(AtariMemoryBase()+0x57))
-pitfall_1_minutes = bcd(byte(AtariMemoryBase() + 0x58))
-pitfall_1_seconds = bcd(byte(AtariMemoryBase() + 0x59))
-pitfall_1_treasures = bitcount(AtariMemoryBase() + 0x6d) + 
-    bitcount(AtariMemoryBase() + 0x6e) + 
-    bitcount(AtariMemoryBase() + 0x6f) + 
-    bitcount(AtariMemoryBase() + 0x70)
-pitfall_2_score = bcd(byte(AtariMemoryBase()+0x47)) * 10000 + 
-    bcd(byte(AtariMemoryBase()+0x48)) * 100 + 
-    bcd(byte(AtariMemoryBase()+0x49))
-pitfall_2_quickclaw = bit6(AtariMemoryBase() + 0x6f)
-pitfall_2_rhonda = bit6(AtariMemoryBase() + 0x70)
-pitfall_2_raj_diamond = bit6(AtariMemoryBase() + 0x71)
-pitfall_2_treasures = bitcount(AtariMemoryBase() + 0x6f) - pitfall_2_quickclaw +
-    bitcount(AtariMemoryBase() + 0x70) - pitfall_2_rhonda +
-    bitcount(AtariMemoryBase() + 0x71) - pitfall_2_raj_diamond +
-    bitcount(AtariMemoryBase() + 0x72)
 
 p2_rhonda = { 0: "", 1: " 👧"}
 p2_quickclaw = { 0: "", 1: " 🐱"}
 p2_raj_diamond = { 0: "", 1: " 💎"}
+
+rp_cheater_canteen = { 0: "", 1: " ⚠️ BOTTOMLESS CANTEEN CHEAT ⚠️"}
+rp_cheater_hyperpunch = { 0: "", 1: " ⚠️ HYPERPUNCH CHEAT ⚠️"}
+rp_cheater_slowmo = { 0: "", 1: " ⚠️ SLOW-MO CHEAT ⚠️"}
+rp_cheater_super_slowmo = { 0: "", 1: " ⚠️ SUPER SLOW-MO CHEAT ⚠️"}
 
 rich_presence_conditional_display(PlayingRetroGame() == 0x01 && playing_pitfall_1, "Playing Pitfall! | 🏃{0} | 💯{1} | ⏰{2} | 💰{3}/32",
     rich_presence_value("Pitfall Lives", pitfall_1_lives),
@@ -662,10 +787,14 @@ rich_presence_conditional_display(!in_gameplay, "On the Main Menu")
 rich_presence_conditional_display(in_initial_jaguar_fight, "{0} is fighting a demonic jaguar",
     rich_presence_lookup("Character", RPCharacter(), characters)
 )
-rich_presence_display("{0} is {1} | ❤️{2}/{3} | 🗿{4}",
+rich_presence_display("{0} is {1} | ❤️{2}/{3} | 🗿{4}{5}{6}{7}{8}",
     rich_presence_lookup("Character", RPCharacter(), characters),
     rich_presence_lookup("Map", Map(), rp_maps),
     rich_presence_value("Health", CurrentHealth()),
     rich_presence_value("Max Health", MaxHealth()),
-    rich_presence_value("Spare Idols", IdolCount())
+    rich_presence_value("Spare Idols", IdolCount()),
+    rich_presence_lookup("Canteen Cheat", BottomlessCanteen(), rp_cheater_canteen),
+    rich_presence_lookup("Hyperpunch Cheat", Hyperpunch(), rp_cheater_hyperpunch),
+    rich_presence_lookup("Slowmo Cheat", SlowMo(), rp_cheater_slowmo),
+    rich_presence_lookup("Super Slowmo Cheat", SuperSlowMo(), rp_cheater_super_slowmo)
 )
