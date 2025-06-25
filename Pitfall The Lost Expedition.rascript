@@ -60,6 +60,7 @@ function GasMask() => dword_be(0x41A2F0)
 //          +0x5c for amount
 //          +0x60 for capacity
 function CanteenPointer() => dword_be(0x41A2FC) & pointer_mask
+function CanteenContent() => dword_be(CanteenPointer() + 0x5c)
 function CanteenCapacity() => dword_be(CanteenPointer() + 0x60)
 
 // $41A30C: [32-bit BE] Canteen unlocked
@@ -75,6 +76,7 @@ function LastMessageBoxProperty() => dword_be(0x41A5CC)
 function MessageBoxProperty() => dword_be(0x41A5EC)
 
 // $41BE4C: [32-bit BE] Harry pointer
+//          +0x330 Rotation (1=flat, -1=upside-down)
 //          +0x338 X position
 //          +0x33C Y position
 //          +0x340 Z position (height)
@@ -82,12 +84,14 @@ function MessageBoxProperty() => dword_be(0x41A5EC)
 //          +0x65C Health count
 //          +0x680 Is inactionable
 //          +0x79c Harry's State
+//          +0x948 Is in healing fountain
 //          +0x960 Invincibility
 //          +0x970 Equipped items
 //          ++0x0 Top item
 //          ++0x4 Right item
 //          ++0x8 Bottom item
 //          ++0xc Left item
+//          +0xb6c Displayed blue HP (for animal fights)
 //          +0x195c Idol count
 //          +0x1960 Rising strike
 //          +0x1968 Super sling
@@ -96,14 +100,21 @@ function MessageBoxProperty() => dword_be(0x41A5EC)
 //          +0x1980 Heroic dive
 //          +0x1988 Smash Strike
 function HarryPointer() => dword_be(0x41BE4C) & pointer_mask
+function HarryRotation() => float_be(HarryPointer() + 0x330)
+function HarryX() => float_be(HarryPointer() + 0x338)
+function HarryY() => float_be(HarryPointer() + 0x33C)
+function HarryZ() => float_be(HarryPointer() + 0x340)
 function MaxHealth() => dword_be(HarryPointer() + 0x658)
 function CurrentHealth() => dword_be(HarryPointer() + 0x65C)
 function Inactionable() => dword_be(HarryPointer() + 0x680)
 function HarryState() => dword_be(HarryPointer() + 0x79c)
+function InHealingFountain() => dword_be(HarryPointer() + 0x948)
+function Invincible() => dword_be(HarryPointer() + 0x960)
 function TopItem() => dword_be(dword_be(HarryPointer() + 0x970) & pointer_mask)
 function RightItem() => dword_be(dword_be(HarryPointer() + 0x970) & pointer_mask + 0x4)
 function BottomItem() => dword_be(dword_be(HarryPointer() + 0x970) & pointer_mask + 0x8)
 function LeftItem() => dword_be(dword_be(HarryPointer() + 0x970) & pointer_mask + 0x4c)
+function AnimalHarryHealth() => dword_be(HarryPointer() + 0xb6c)
 function IdolCount() => dword_be(HarryPointer() + 0x195c)
 function RisingStrike() => dword_be(HarryPointer() + 0x1960)
 function SuperSling() => dword_be(HarryPointer() + 0x1968)
@@ -111,21 +122,47 @@ function Breakdance() => dword_be(HarryPointer() + 0x1970)
 function HeroicDash() => dword_be(HarryPointer() + 0x1970)
 function HeroicDive() => dword_be(HarryPointer() + 0x1980)
 function SmashStrike() => dword_be(HarryPointer() + 0x1988)
-function Invincible() => dword_be(HarryPointer() + 0x960)
 
-// $41BEB0: [32-bit] Transitioning maps
-function MapTransition() => dword(0x41BEB0)
+animal_spirit_defeated = prev(AnimalHarryHealth()) == 0x01 && AnimalHarryHealth() == 0x00
+
+// $41BEB0: [32-bit] Loading a map
+function MapLoading() => dword_be(0x41BEB0)
 
 // $41BEB4: [32-bit BE] Current map
 function Map() => dword_be(0x41BEB4)
 
 // $41BEE0: [32-bit BE] UI Pointer
 //          +0xf8
+//          ++0xbc = Displayed time left in Monkey Temple fight
 //          ++0x130 = Current displayed health
+//          +0xfc
+//          ++0xd4 = Tuco Shoot score
+//          +0x100
+//          ++0xbc = Tuco Shoot timer
+//          ++0xd8 = KaBOOM! timer
+//          +0x104
+//          ++0xbc = KaBOOM! timer
 //          +0x108
 //          ++0xd8 = Butterflies remaining
+//          +0x114
+//          ++0xd8 = Whack-a-tuco first native score
+//          +0x118
+//          ++0xd8 = Whack-a-tuco second native score
+//          +0x11c
+//          ++0xd8 = Whack-a-tuco score
+//          +0x21c
+//          ++0x08 = [16-bit BE] Raft Bowling first frame score. Future frames are spaced +0x2c along. Value of 301 when undetermined
 function UIPointer() => dword_be(0x41BEE0) & pointer_mask
-function DisplayedHealth() => dword_be(dword_be(UIPointer() + 0xf8) + 0x130)
+function MonkeyTimer() => dword_be((dword_be(UIPointer() + 0xf8) & pointer_mask) + 0xbc)
+function DisplayedHealth() => dword_be((dword_be(UIPointer() + 0xf8) & pointer_mask) + 0x130)
+tuco_shoot_score = dword_be((dword_be(UIPointer() + 0xfc) & pointer_mask) + 0xd4)
+tuco_shoot_timer = dword_be((dword_be(UIPointer() + 0x100) & pointer_mask) + 0xbc)
+kaboom_timer = dword_be((dword_be(UIPointer() + 0x100) & pointer_mask) + 0xd8)
+kaboom_score = dword_be((dword_be(UIPointer() + 0x104) & pointer_mask) + 0xbc)
+whack_tuco_enemy1_score = dword_be((dword_be(UIPointer() + 0x114) & pointer_mask) + 0xd8)
+whack_tuco_enemy2_score = dword_be((dword_be(UIPointer() + 0x118) & pointer_mask) + 0xd8)
+whack_tuco_score = dword_be((dword_be(UIPointer() + 0x11c) & pointer_mask) + 0xd8)
+function RaftBowlingFrameScore(frame) => word_be((dword_be(UIPointer() + 0x21c) & pointer_mask) + (0x08) + (0x2c * frame))
 
 // $41BEF8: [32-bit BE] Updates with the map ID when moving to a new region, but remains 0 when loading game.
 function FauxMap() => dword_be(0x41BEF8)
@@ -193,7 +230,7 @@ function RetroHarry() => dword_be(0x45D9AC)
 function PitfallEmulator() => dword_be(0x45D9B0)
 
 // $45D9B4: [32-bit BE] Emulator: Pitfall II: Lost Caverns
-function Pitfarll2Emulator() => dword_be(0x45D9B4)
+function Pitfall2Emulator() => dword_be(0x45D9B4)
 
 // $45D9B8: [32-bit BE] Stink Bombs
 function StinkBombs() => dword_be(0x45D9B8)
@@ -204,6 +241,7 @@ function BottomlessCanteen() => dword_be(0x45D9BC)
 // $45D9C0: [32-bit BE] Hyperpunch cheat
 function Hyperpunch() => dword_be(0x45D9C0)
 no_illegal_cheats = BottomlessCanteen() == 0x00 && Hyperpunch() == 0x00 && SlowMo() == 0x00 && SuperSlowMo() == 0x00
+no_speedrun_illegal_cheats = BottomlessCanteen() == 0x00 && Hyperpunch() == 0x00 && FastMo() == 0x00 && SlowMo() == 0x00 && SuperSlowMo() == 0x00
 
 // $45E0AC: [32-bit BE] Flips from 0x48 to 0x08 on chapter start map scene and in Shaman Shop. Also periodically flips when sling equipped in Mouth of Inti.
 function ForcedMenu() => dword_be(0x45E0AC)
@@ -212,10 +250,15 @@ function ForcedMenu() => dword_be(0x45E0AC)
 //          See also 0x0083276f and 0x0083277f
 function HintsVisible() => dword_be(0x4CB78C)
 
-// $4CB940: [32-bit BE] Pusca pointer
-//          +0x68c = Pusca's HP
-function PuscaPointer() => dword_be(0x4CB940) & pointer_mask
-function PuscaHP() => dword_be(PuscaPointer() + 0x68c)
+// $4CB940: [32-bit BE] Boss pointer
+//          +0x68c = Boss's HP
+function BossPointer() => dword_be(0x4CB940) & pointer_mask
+function BossHealth() => dword_be(BossPointer() + 0x68c)
+
+boss_starts = prev(BossPointer()) == 0x00 &&
+    BossPointer() != 0x00
+boss_defeated = prev(BossHealth() == 0x01) && 
+    BossHealth() == 0x00
 
 // $4CBA08: [32-bit BE] Pointer to Atari emulation
 //          +0x08		4 if playing Pitfall, 0 if playing Pitfall 2
@@ -232,6 +275,9 @@ function AtariMemoryBase() => (dword_be((dword_be((dword_be((dword_be(AtariPoint
      + 0x104) & pointer_mask)
      + 0x42fc8) & pointer_mask)
      + 0x50) & pointer_mask)
+
+// $4CCAFC: [32-bit BE] Difficulty of last played Native Game
+function NativeGameDifficulty() => dword_be(0x4CCAFC)
 
 // $4CCE68: [32-bit BE] Pointer to pointer to object tree start point
 //          +0xc Pointer to object tree start point
@@ -338,7 +384,8 @@ ChapterTitles = ["Welcome to the Jungle",
     "The Road to El Dorado"]
 
 in_gameplay = HarryPointer() != 0x00000000
-stopped_gameplay = prev(HarryPointer()) != 0x00000000 && HarryPointer() == 0x00000000
+stopped_gameplay = MapLoading() != 0x01 && Loading() != 0x01 && HarryPointer() == 0x00000000
+active_gameplay = in_gameplay && Loading() == 0x00 && PauseTracker() == 0x00
 
 gained_sling = prev(Sling()) == 0x00 && Sling() == 0x01
 gained_rising_strike = prev(RisingStrike()) == 0x00 && RisingStrike() == 0x01
@@ -364,6 +411,10 @@ function leftMap(mapName){
         Map() != MapIDs[mapName]
 }
 
+function movedMap(movedFrom, movedTo){
+    return prev(inMap(movedFrom)) && inMap(movedTo)
+}
+
 function finishNthCutscene(cutscene_count, map_name){   //Bittenbinder's Camp can be entered by swimming
     return repeated(cutscene_count, 
         finished_cutscene &&
@@ -371,6 +422,7 @@ function finishNthCutscene(cutscene_count, map_name){   //Bittenbinder's Camp ca
         never(entering_map &&
         inMap(map_name)))
 }
+in_initial_jaguar_fight = inMap("Ruins of El Dorado (Supai/Jaguar)") && Canteen() == 0
 finish_torch_cutscene = once(gained_torch &&
     never(entering_map)) &&
     finished_cutscene &&
@@ -385,6 +437,19 @@ finished_initiation = once(gained_shield) &&
         never(lost_shield || 
         leftMap("Native Village") ||
         stopped_gameplay)
+
+displaced = prev(HarryX()) - HarryX() > 10 ||
+    prev(HarryX()) - HarryX() < -10 ||
+    prev(HarryY()) - HarryY() > 10 ||
+    prev(HarryY()) - HarryY() < -10
+
+function Caught() => prev(inMap("St. Claire's Excavation Camp (Night)")) &&
+    prior(HarryState() != 0x76) &&
+    (displaced)
+
+function StClairesSpawn() => inMap("St. Claire's Excavation Camp (Night)") && 
+    finished_cutscene &&
+    Shield() == 0x00
 
 pitfall_1_lives = 1 + bit5(AtariMemoryBase()) + bit7(AtariMemoryBase())
 pitfall_1_score = bcd(byte(AtariMemoryBase()+0x55)) * 10000 + 
@@ -408,20 +473,73 @@ pitfall_2_treasures = bitcount(AtariMemoryBase() + 0x6f) - pitfall_2_quickclaw +
     bitcount(AtariMemoryBase() + 0x72)
 
 achievement(
-    title = "Testing chapter start detector",
+    title = "Testing st claire's camp stealth",
     description = "Making sure this behaves as I expect",
     points = 0,
-    trigger = chapter_start
+    trigger = once(StClairesSpawn() && 
+        never(Caught())) &&
+        trigger_when(prev(Canteen() == 0x00) && Canteen() == 0x01)
 )
+
+game_start = in_initial_jaguar_fight &&
+    finished_cutscene &&
+    BossHealth() == 0x0a
+supai_1_end = in_initial_jaguar_fight &&
+        boss_defeated
+prologue_end = chapter_start &&
+        inMap("Plane Cockpit")
+chapter_1_end = chapter_start &&
+        inMap("Bittenbinder's Camp")
+chapter_2_end = chapter_start &&
+        inMap("Mouth of Inti")
+chapter_3_end = grabbed_key_item &&
+        inMap("Monkey Temple (Harry)")
+chapter_4_end = chapter_start &&
+        inMap("Native Village") &&
+        Shield() == 0x00
+chapter_5_end = chapter_start &&
+        inMap("Butterfly Glade")
+chapter_6_end = chapter_start &&
+        inMap("Native Village") &&
+        Shield() == 0x01
+chapter_7_end = gained_gas_mask &&
+        inMap("Renegade Headquarters")
+chapter_8_end = chapter_start &&
+        inMap("Cavern Lake")
+chapter_9_end = grabbed_key_item &&
+        inMap("Scorpion Temple (Harry)")
+chapter_10_end = grabbed_key_item &&
+        inMap("Penguin Temple (Harry)")
+chapter_11_end = chapter_start &&
+        inMap("Apu Illapu Shrine")
+chapter_12_end = chapter_start &&
+        inMap("Chameleon Temple")
+chapter_13_end = chapter_start &&
+        inMap("The Altar of Ages")
+chapter_14_end = chapter_start &&
+        inMap("St. Claire's Excavation Camp (Night)")
+pusca_defeated = inMap("Ancient El Dorado (Pusca)") &&
+    boss_defeated
+
+
+achievement(
+    title = "It's A Long Story",
+    description = "Fend off a demonic jaguar",
+    points = 1,
+    trigger = in_gameplay && 
+        no_illegal_cheats &&
+        supai_1_end,
+    type = "progression"
+)
+
 
 achievement(
     title = "The Lost Expeditioner",
     description = "Follow the flares to find another survivor",
-    points = 5,
+    points = 3,
     trigger = in_gameplay && 
         no_illegal_cheats &&
-        chapter_start &&
-        inMap("Plane Cockpit"),
+        prologue_end,
     type = "progression"
 )
 
@@ -431,30 +549,27 @@ achievement(
     points = 5,
     trigger = in_gameplay && 
         no_illegal_cheats &&
-        chapter_start &&
-        inMap("Bittenbinder's Camp"),
+        chapter_1_end,
     type = "progression"
 )
 
 achievement(
     title = ChapterTitles[1],
-    description = "Get Nicole out of the Tree",
+    description = "Get Nicole out of the tree",
     points = 5,
     trigger = in_gameplay &&
         no_illegal_cheats &&
-        chapter_start &&
-        inMap("Mouth of Inti"),
+        chapter_2_end,
     type = "progression"
 )
 
 achievement(
     title = ChapterTitles[2],
     description = "Find an ancient artifact inside Monkey Temple",
-    points = 5,
+    points = 10,
     trigger = in_gameplay && 
         no_illegal_cheats &&
-        grabbed_key_item &&
-        inMap("Monkey Temple (Harry)"),
+        chapter_3_end,
     type = "progression"
 )
 
@@ -464,9 +579,7 @@ achievement(
     points = 2,
     trigger = in_gameplay && 
         no_illegal_cheats &&
-        chapter_start &&
-        inMap("Native Village") &&
-        Shield() == 0x00,
+        chapter_4_end,
     type = "progression"
 )
 
@@ -476,8 +589,7 @@ achievement(
     points = 2,
     trigger = in_gameplay && 
         no_illegal_cheats &&
-        chapter_start &&
-        inMap("Butterfly Glade"),
+        chapter_5_end,
     type = "progression"
 )
 
@@ -487,9 +599,7 @@ achievement(
     points = 1,
     trigger = in_gameplay && 
         no_illegal_cheats &&
-        chapter_start &&
-        inMap("Native Village") &&
-        Shield() == 0x01,
+        chapter_6_end,
     type = "progression"
 )
 
@@ -499,41 +609,37 @@ achievement(
     points = 5,
     trigger = in_gameplay && 
         no_illegal_cheats &&
-        gained_gas_mask &&
-        inMap("Renegade Headquarters"),
+        chapter_7_end,
     type = "progression"
 )
 
 achievement(
     title = ChapterTitles[7],
-    description = "Rescue Leech at the Cavern Lake",
+    description = "Enter the Snowy Mountains and rescue Leech",
     points = 5,
     trigger = in_gameplay && 
         no_illegal_cheats &&
-        chapter_start &&
-        inMap("Cavern Lake"),
+        chapter_8_end,
     type = "progression"
 )
 
 achievement(
     title = ChapterTitles[8],
     description = "Find an ancient artifact inside Scorpion Temple",
-    points = 5,
+    points = 10,
     trigger = in_gameplay && 
         no_illegal_cheats &&
-        grabbed_key_item &&
-        inMap("Scorpion Temple (Harry)"),
+        chapter_9_end,
     type = "progression"
 )
 
 achievement(
     title = ChapterTitles[9],
     description = "Find an ancient artifact inside Penguin Temple",
-    points = 5,
+    points = 10,
     trigger = in_gameplay && 
         no_illegal_cheats &&
-        grabbed_key_item &&
-        inMap("Penguin Temple (Harry)"),
+        chapter_10_end,
     type = "progression"
 )
 
@@ -543,30 +649,27 @@ achievement(
     points = 5,
     trigger = in_gameplay && 
         no_illegal_cheats &&
-        chapter_start &&
-        inMap("Apu Illapu Shrine"),
+        chapter_11_end,
     type = "progression"
 )
 
 achievement(
     title = ChapterTitles[11],
     description = "Seek an ancient artifact inside Chameleon Temple",
-    points = 1,
+    points = 2,
     trigger = in_gameplay && 
         no_illegal_cheats &&
-        chapter_start &&
-        inMap("Chameleon Temple"),
+        chapter_12_end,
     type = "progression"
 )
 
 achievement(
     title = ChapterTitles[12],
-    description = "Hear the whole story from Princess Micay",
-    points = 1,
+    description = "Hear the whole story from Micay",
+    points = 2,
     trigger = in_gameplay && 
         no_illegal_cheats &&
-        chapter_start &&
-        inMap("The Altar of Ages"),
+        chapter_13_end,
     type = "progression"
 )
 
@@ -576,21 +679,95 @@ achievement(
     points = 5,
     trigger = in_gameplay && 
         no_illegal_cheats &&
-        chapter_start &&
-        inMap("St. Claire's Excavation Camp (Night)"),
+        chapter_14_end,
     type = "progression"
 )
 
 achievement(
     title = ChapterTitles[14],
     description = "Save El Dorado from Spanish invasion, and from Pusca",
+    points = 25,
+    trigger = in_gameplay && 
+        no_illegal_cheats &&
+        pusca_defeated,
+    type = "win_condition"
+)
+
+entered_final_bosses = prev(inMap("Gates of El Dorado")) && inMap("Ruins of El Dorado (Supai/Jaguar)")
+drank_canteen = prev(CanteenContent()) == CanteenContent() + 1
+
+achievement(
+    title = "Shove Off St. Scum",
+    description = "Defeat St. Claire in Mouth of Inti without any health upgrades and without using the canteen",
     points = 10,
     trigger = in_gameplay && 
         no_illegal_cheats &&
+        once(inMap("Mouth of Inti") &&
+            boss_starts && 
+            MaxHealth() == 0x05 &&
+            never(drank_canteen)) &&
+        inMap("Mouth of Inti") &&
+        boss_defeated && 
+        MaxHealth() == 0x05
+)
+
+achievement(
+    title = "Renegade Wrangler",
+    description = "Enter Renegade Headquarters and claim the Gas Mask without any health upgrades and without using the canteen",
+    points = 10,
+    trigger = in_gameplay && 
+        no_illegal_cheats &&
+        once(inMap("Renegade Headquarters") &&
+            GasMask() == 0x00 &&
+            MaxHealth() == 0x05 &&
+            never(drank_canteen)) &&
+        inMap("Renegade Headquarters") &&
+        gained_gas_mask && 
+        MaxHealth() == 0x05
+)
+
+achievement(
+    title = "Do I Look Like I've Got Money?",
+    description = "Defeat St. Claire in Crystal Cavern without any health upgrades and without using the canteen",
+    points = 10,
+    trigger = in_gameplay && 
+        no_illegal_cheats &&
+        once(inMap("Crystal Cavern") &&
+            boss_starts && 
+            MaxHealth() == 0x05 &&
+            never(drank_canteen)) &&
+        inMap("Crystal Cavern") &&
+        boss_defeated && 
+        MaxHealth() == 0x05
+)
+
+achievement(
+    title = "Could I Be The Green Ninja?",
+    description = "Enter Apu Illapu Shrine and rescue Mole from the spinjas without any health upgrades and without using the canteen",
+    points = 10,
+    trigger = in_gameplay && 
+        no_illegal_cheats &&
+        once(inMap("Apu Illapu Shrine") &&
+            TNT() == 0x00 &&
+            MaxHealth() == 0x05 &&
+            never(drank_canteen)) &&
+        inMap("Apu Illapu Shrine") &&
+        gained_TNT && 
+        MaxHealth() == 0x05
+)
+
+achievement(
+    title = "I Don't Need It",
+    description = "Defeat the demonic jaguar and Pusca without any health upgrades and without using the canteen",
+    points = 25,
+    trigger = in_gameplay && 
+        no_illegal_cheats &&
+        once(entered_final_bosses && 
+            MaxHealth() == 0x05 &&
+            never(drank_canteen)) &&
         inMap("Ancient El Dorado (Pusca)") &&
-        prev(PuscaHP()) == 0x01 &&
-        PuscaHP() == 0x00,
-    type = "win_condition"
+        boss_defeated && 
+        MaxHealth() == 0x05
 )
 
 achievement(
@@ -613,7 +790,7 @@ achievement(
 
 achievement(
     title = "It Helps You Be Heroic, Or a Handbook",
-    description = "Gather all the pages of the Heroic Handbook",
+    description = "Gather all the missing technique pages of the Heroic Handbook",
     points = 10,
     trigger = in_gameplay &&
         prev(HeroicDash()) + prev(SuperSling()) + prev(HeroicDive()) + prev(RisingStrike()) + prev(Breakdance()) + prev(SmashStrike()) == 5 &&
@@ -629,12 +806,12 @@ all_trackable_upgrades = MaxHealth() == 0x0a &&
 function PitfallAccess() => once(prev(PauseTracker()) == 0x07 && PauseTracker() == 0x02) && 
     prev(PauseTracker()) == 0x00 && PauseTracker() == 0x04 &&
     never(once(prev(PauseTracker()) == 0x07 && PauseTracker() == 0x02) &&
-        tally(300, PauseTracker() == 0x00)
+        repeated(300, PauseTracker() == 0x00)
     )
 
 achievement(
     title = "Worth My Weight In Gold, Apparently",
-    description = "Get a bonus prize for purchasing all the Shaman's wares",
+    description = "Get a special prize for purchasing all the Shaman's wares",
     points = 25,
     trigger = in_gameplay && 
         PitfallAccess() &&
@@ -644,7 +821,391 @@ achievement(
 )
 
 achievement(
-    title = "Bonafide Explorer",
+    title = "Snake in the Grass",
+    description = "Recover everything in St. Claire's Excavation Camp without ever being caught",
+    points = 10,
+    trigger = in_gameplay && 
+        no_illegal_cheats &&
+        once(StClairesSpawn() && 
+            never(Caught())) &&
+        trigger_when(chapter_start &&
+        inMap("St. Claire's Excavation Camp (Night)") &&
+        Canteen() == 0x01 &&
+        Sling() == 0x01 &&
+        Torch() == 0x01 &&
+        Shield() == 0x01 &&
+        GasMask() == 0x01 &&
+        Raft() == 0x01 &&
+        Pickaxe() == 0x01 &&
+        TNT() == 0x01)
+)
+
+timer_active = PauseTracker() + Loading() == 0
+
+achievement(
+    title = "Retrace Your Steps",
+    description = "Travel from the Gates of El Dorado back to the Crash Site in under X:XX",
+    points = 10,
+    trigger = in_gameplay && 
+        no_speedrun_illegal_cheats &&
+        once(no_speedrun_illegal_cheats && 
+            prev(Map()) != Map() &&
+            never(repeated(25*60*60, !timer_active)) &&
+            prev(inMap("Gates of El Dorado"))) &&
+        trigger_when(inMap("Crash Site")) &&
+        never(stopped_gameplay)
+)
+
+achievement(
+    title = "Native Envoy",
+    description = "Travel from the Native Village to the top of the Renegade Headquarters in under X:XX",
+    points = 10,
+    trigger = in_gameplay && 
+        no_speedrun_illegal_cheats &&
+        once(no_speedrun_illegal_cheats && 
+            prev(Map()) != Map() &&
+            never(repeated(25*60*60, !timer_active)) &&
+            prev(inMap("Native Village"))) &&
+        trigger_when(inMap("Renegade Headquarters")) &&
+        never(stopped_gameplay)
+)
+
+achievement(
+    title = "Cavern Circuit",
+    description = "Travel from the Underground Dam to the Mountain Overlook and return to the Underground Dam in under X:XX",
+    points = 10,
+    trigger = in_gameplay && 
+        no_speedrun_illegal_cheats &&
+        once(no_speedrun_illegal_cheats && 
+            prev(Map()) != Map() &&
+            never(repeated(25*60*60, !timer_active)) &&
+            prev(inMap("Underground Dam"))) &&
+        trigger_when(inMap("Underground Dam") &&
+            once(inMap("Mountain Overlook") &&
+                never(prev(inMap("Underground Dam"))))) &&
+        never(stopped_gameplay)
+)
+
+achievement(
+    title = "Mountaintop Tour",
+    description = "Travel from White Valley to Apu Illapu Shrine and back to White Valley in under X:XX without taking White Valley's geyser",
+    points = 10,
+    trigger = in_gameplay && 
+        no_speedrun_illegal_cheats &&
+        once(no_speedrun_illegal_cheats && 
+            prev(Map()) != Map() &&
+            never(repeated(25*60*60, !timer_active)) &&
+            never(movedMap("White Valley", "Mountain Sled Run")) &&
+            prev(inMap("White Valley")) &&
+            !inMap("White Valley")) &&
+        trigger_when(inMap("White Valley") &&
+            once(inMap("Apu Illapu Shrine") &&
+                never(prev(inMap("White Valley"))))) &&
+        never(stopped_gameplay)
+)
+
+achievement(
+    title = "Holy Pilgrimage",
+    description = "Visit all four animal temples, The Altar of Ages, and the Gates of El Dorado in any order in under 25:00",
+    points = 25,
+    trigger = in_gameplay && 
+        no_speedrun_illegal_cheats &&
+        once(no_speedrun_illegal_cheats && 
+            prev(Map()) != Map() &&
+            never(repeated(25*60*60, !timer_active)) &&
+            (prev(inMap("Monkey Temple (Harry)")) || 
+            prev(inMap("Scorpion Temple (Harry)")) || 
+            prev(inMap("Penguin Temple (Harry)")) || 
+            prev(inMap("Chameleon Temple")) || 
+            prev(inMap("The Altar of Ages")) || 
+            prev(inMap("Gates of El Dorado"))) ) &&
+        trigger_when(tally(6, once(prev(inMap("Monkey Temple (Harry)"))), 
+            once(prev(inMap("Scorpion Temple (Harry)"))),
+            once(prev(inMap("Penguin Temple (Harry)"))),
+            once(prev(inMap("Chameleon Temple"))),
+            once(prev(inMap("The Altar of Ages"))),
+            once(prev(inMap("Gates of El Dorado"))))) &&
+        never(stopped_gameplay)
+)
+
+abandoned_challenge = prev(Map()) != Map() || stopped_gameplay
+
+achievement(
+    title = "Target Sighted",
+    description = "Defeat St. Claire at the Mouth of Inti without getting hit and without unequipping the sling",
+    points = 5,
+    trigger = in_gameplay && 
+        no_illegal_cheats &&
+        once(inMap("Mouth of Inti") &&
+            boss_starts &&
+            never(abandoned_challenge) &&
+            never(prev(HarryState()) == 0x13) &&
+            HarryState() != 0x13) &&
+            never(prev(CurrentHealth()) > CurrentHealth()) &&
+        boss_defeated,
+    type = "Missable"
+)
+
+achievement(
+    title = "Apes Together Strong",
+    description = "Defeat the animal spirit in Monkey Temple with 30 or more seconds left on the timer",
+    points = 5,
+    trigger = in_gameplay && 
+        no_illegal_cheats &&
+        inMap("Monkey Temple (Spirit)") &&
+        MonkeyTimer() >= 30 &&
+        trigger_when(animal_spirit_defeated),
+    type = "Missable"
+)
+
+using_non_breakdance_attack = HarryState() == 0x11 ||
+    HarryState() == 0x13 ||
+    HarryState() == 0x27 ||
+    HarryState() == 0x2f ||
+    HarryState() == 0x31 ||
+    HarryState() == 0x32 ||
+    HarryState() == 0x4c ||
+    HarryState() == 0x5a ||
+    HarryState() == 0x5e ||
+    HarryState() == 0x66 ||
+    HarryState() == 0x7c
+
+achievement(
+    title = "Dance Battle",
+    description = "Defeat St. Claire in the Crystal Cavern without using any attacks except for the breakdance",
+    points = 5,
+    trigger = in_gameplay && 
+        no_illegal_cheats &&
+        once(inMap("Crystal Cavern") && 
+            boss_starts &&
+            never(using_non_breakdance_attack) &&
+            never(abandoned_challenge)) &&
+        boss_defeated,
+    type = "Missable"
+)
+
+achievement(
+    title = "The Ceiling is Lava",
+    description = "Defeat the scorpion spirit without spending more than 30 seconds on the ceiling at a time. (Ceiling is counted as where your body is fully above the top of the constellation murals)",
+    points = 5,
+    trigger = in_gameplay && 
+        no_illegal_cheats &&
+        once(inMap("Scorpion Temple (Spirit)") &&
+        MapLoading() == 0x01 &&
+        never(repeated(45*60, HarryRotation() <= -0.75 &&
+                never(HarryRotation() > -0.75))) &&
+        never(abandoned_challenge)) &&
+    trigger_when(animal_spirit_defeated),
+    type = "Missable"
+)
+
+achievement(
+    title = "Cold Comfort",
+    description = "Defeat the penguin spirit without ever being hit",
+    points = 5,
+    trigger = in_gameplay && 
+        no_illegal_cheats &&
+        once(inMap("Penguin Temple (Spirit)") &&
+        MapLoading() == 0x01 &&
+        never(HarryState() == 0x08) &&
+        never(abandoned_challenge)),
+    type = "Missable"
+)
+
+achievement(
+    title = "Atari Jaguar",
+    description = "Defeat the demonic jaguar without being hit and in under 1:00",
+    points = 5,
+    trigger = in_gameplay && 
+        no_illegal_cheats &&
+        once(inMap("Ruins of El Dorado (Supai/Jaguar)") &&
+            Canteen() == 0x01 &&
+            finished_cutscene &&
+            BossHealth() == 0xa &&
+            never(prev(CurrentHealth()) > CurrentHealth()) &&
+            never(abandoned_challenge) &&
+            never(repeated(60*60, PauseTracker() == 0x00))) &&
+        trigger_when(boss_defeated),
+    type = "Missable"
+)
+
+reset_challenge = stopped_gameplay || MapLoading() == 0x01
+
+achievement(
+    title = "I'll Get That Blasted Porcupine!",
+    description = "Beat a round of Tuco Shoot on hard without hitting any Tuco Tucos",
+    points = 5,
+    trigger = in_gameplay && 
+        no_illegal_cheats &&
+        inMap("Tuco Shoot") &&
+        NativeGameDifficulty() == 0x02 &&
+        once(inMap("Tuco Shoot") &&
+            NativeGameDifficulty() == 0x02 &&
+            prev(PauseTracker()) == 0x04 &&
+            PauseTracker() == 0x00 &&
+            never(prev(tuco_shoot_score) + 1 == tuco_shoot_score) && 
+            never(reset_challenge)) &&
+        trigger_when(prev(tuco_shoot_score) < 10 &&
+            tuco_shoot_score >= 10 &&
+            tuco_shoot_timer <= 0x3c &&
+            tuco_shoot_timer > 0x00)
+)
+
+
+
+achievement(
+    title = "Turkey of the Sea",
+    description = "Get three strikes in a row in Raft Bowling on hard",
+    points = 5,
+    trigger = in_gameplay && 
+        no_illegal_cheats &&
+        inMap("Raft Bowling") &&
+        NativeGameDifficulty() == 0x02 &&
+        (prev(RaftBowlingFrameScore(0)) == 301 && 
+        RaftBowlingFrameScore(0) == 30) ||
+        (prev(RaftBowlingFrameScore(1)) == 301 &&
+            RaftBowlingFrameScore(1) - RaftBowlingFrameScore(0) == 30) ||
+        (prev(RaftBowlingFrameScore(2)) == 301 &&
+            RaftBowlingFrameScore(2) - RaftBowlingFrameScore(1) == 30) ||
+        (prev(RaftBowlingFrameScore(3)) == 301 &&
+            RaftBowlingFrameScore(3) - RaftBowlingFrameScore(2) == 30) ||
+        (prev(RaftBowlingFrameScore(4)) == 301 &&
+            RaftBowlingFrameScore(4) - RaftBowlingFrameScore(3) == 30) ||
+        (prev(RaftBowlingFrameScore(5)) == 301 &&
+            RaftBowlingFrameScore(5) - RaftBowlingFrameScore(4) == 30) ||
+        (prev(RaftBowlingFrameScore(6)) == 301 &&
+            RaftBowlingFrameScore(6) - RaftBowlingFrameScore(5) == 30) ||
+        (prev(RaftBowlingFrameScore(7)) == 301 &&
+            RaftBowlingFrameScore(7) - RaftBowlingFrameScore(6) == 30) ||
+        (prev(RaftBowlingFrameScore(8)) == 301 &&
+            RaftBowlingFrameScore(8) - RaftBowlingFrameScore(7) == 30) ||
+        (prev(RaftBowlingFrameScore(9)) == 301 &&
+            RaftBowlingFrameScore(9) - RaftBowlingFrameScore(8) == 30)
+
+)
+
+pickaxe_race_winning_height = 214.64278
+
+achievement(
+    title = "Pickaxe Race",
+    description = "Beat Pickaxe Race on hard in under 1:30",
+    points = 5,
+    trigger = in_gameplay && 
+        no_illegal_cheats &&
+        inMap("Pickaxe Race") &&
+        NativeGameDifficulty() == 0x02 &&
+        once(inMap("Pickaxe Race") &&
+            NativeGameDifficulty() == 0x02 &&
+            prev(PauseTracker()) == 0x04 &&
+            PauseTracker() == 0x00 &&
+            never(reset_challenge) &&
+            never(tally(60 * 90, PauseTracker() == 0x00))) &&
+        trigger_when(prev(HarryZ()) < pickaxe_race_winning_height &&
+            HarryZ() >= pickaxe_race_winning_height)
+)
+
+
+achievement(
+    title = "Hands Off My Prey",
+    description = "Win Whack-a-Tuco on hard without either native athlete getting more than 5 points",
+    points = 5,
+    trigger = in_gameplay && 
+        no_illegal_cheats &&
+        inMap("Whack-A-Tuco") &&
+        NativeGameDifficulty() == 0x02 &&
+        prev(whack_tuco_score) == 9 &&
+        whack_tuco_enemy1_score <= 5 &&
+        whack_tuco_enemy2_score <= 5 &&
+        whack_tuco_score == 10
+
+)
+
+achievement(
+    title = "Win, Lose, And KaBOOM!",
+    description = "Win KaBOOM! on hard without exiting TNT throwing mode for movement",
+    points = 5,
+    trigger = in_gameplay && 
+        no_illegal_cheats &&
+        inMap("KaBOOM!") &&
+        NativeGameDifficulty() == 0x02 &&
+        once(inMap("KaBOOM!") &&
+            NativeGameDifficulty() == 0x02 &&
+            prev(PauseTracker()) == 0x04 &&
+            PauseTracker() == 0x00 &&
+            never(HarryState() == 0x08) && 
+            never(HarryState() == 0x09) && 
+            never(HarryState() == 0x63) && 
+            never(reset_challenge)) &&
+        trigger_when(prev(kaboom_score) > 0 &&
+            kaboom_score == 0 &&
+            kaboom_timer <= 0x3c &&
+            kaboom_timer > 0x00)
+
+)
+
+achievement(
+    title = "Float Like a Butterfly",
+    description = "Cross the Butterfly Glade and enter Renegade Fort without swimming or using the Heroic Dive",
+    points = 10,
+    trigger = in_gameplay && 
+        no_illegal_cheats &&
+        once(inMap("Butterfly Glade") &&
+            HarryX() < 270 &&
+            HarryX() != 0 &&
+            (HarryState() == 0x08 ||
+            HarryState() == 0x09) &&
+            never(HarryState() == 0x1c) &&
+            never(HarryState() == 0x36) &&
+            never(stopped_gameplay)) &&
+        trigger_when(prev(inMap("Butterfly Glade")) &&
+            inMap("Renegade Fort"))
+)
+
+achievement(
+    title = "The Path of Peace",
+    description = "Cross the Underground Dam from Jungle Canyon to Abandoned Cavern without using any attacks except for one Rising Strike",
+    points = 10,
+    trigger = in_gameplay &&
+        no_illegal_cheats &&
+        once(movedMap("Jungle Canyon", "Underground Dam")) &&
+        never(repeated(2, prev(HarryState()) == 0x2f && HarryState() != 0x2f) &&
+            inMap("Underground Dam")) &&
+        never(prev(HarryState()) == 0x27 && HarryState() != 0x2f && HarryState() != 0x27 &&
+            inMap("Underground Dam")) &&
+        never(inMap("Underground Dam") &&
+            (HarryState() == 0x11 || 
+            HarryState() == 0x29 ||
+            HarryState() == 0x31 ||
+            HarryState() == 0x32 ||
+            HarryState() == 0x4c ||
+            HarryState() == 0x5a ||
+            HarryState() == 0x5e ||
+            HarryState() == 0x66 ||
+            HarryState() == 0x7c)) &&
+        never(stopped_gameplay)
+)
+
+achievement(
+    title = "Hole in One",
+    description = "Take the jump from the end of the Mountain Sled Run and land in the healing fountain",
+    points = 5,
+    trigger = in_gameplay && 
+        no_illegal_cheats &&
+        once(inMap("Mountain Sled Run") &&
+            HarryState() == 0x6e && 
+            HarryZ() > 0 && 
+            never(
+                inMap("Mountain Sled Run") &&
+                prev(HarryState()) == 0x6e &&
+                HarryState() != 0x6e &&
+                HarryZ() < 0)) && 
+        inMap("Mountain Sled Run") &&
+        HarryState() == 0x6e && 
+        InHealingFountain() == 0x01
+)
+
+achievement(
+    title = "Explorer Extraordinaire",
     description = "Join the Explorer's Club by surpassing a score of 20,000 in Pitfall!",
     points = 5,
     trigger = PlayingRetroGame() == 0x01 &&
@@ -652,6 +1213,27 @@ achievement(
         prev(pitfall_1_score) < 20000 &&
         pitfall_1_score >= 20000
 )
+
+achievement(
+    title = "There's Always Another Adventure",
+    description = "Find a treasure in Pitfall 2: Lost Caverns",
+    points = 5,
+    trigger = PlayingRetroGame() == 0x01 &&
+        playing_pitfall_2 &&
+        pitfall_2_score > prev(pitfall_2_score) &&
+        prev(pitfall_2_score) != 0
+)
+
+
+
+
+// Climbing the Great Tree (Now covered by Holy Pilgrimage - maybe)
+// Underground Dam without attacking? Need Rising Strikes though...
+// Apu Illapu without pickaxes? Force dizzy?
+// I should have a glitch showcase set. Might need to visit the Discord for that
+
+
+
 
 /*
 achievement(
@@ -683,11 +1265,249 @@ achievement(
 )
 */
 
+// ---------------------------------------------------------------------------------------------  RICH PRESENCE  ---------------------------------------------------------------------------------------------
+
+leaderboard(
+    title = "Any% Speedrun",
+    description = "Beat the game from a fresh file",
+    start = no_speedrun_illegal_cheats &&
+        game_start,
+    cancel = stopped_gameplay,
+    submit = pusca_defeated,
+    value = timer_active,
+    format = "FRAMES",
+    lower_is_better = true
+)
+
+leaderboard(
+    title = "100% Speedrun",
+    description = "From a fresh file defeat Pusca and buy every item from the Shaman shop",
+    start = no_speedrun_illegal_cheats &&
+        game_start,
+    cancel = stopped_gameplay,
+    submit = pusca_defeated,
+    value = timer_active,
+    format = "FRAMES",
+    lower_is_better = true
+)
+
+leaderboard(
+    title = "Introductory Chapter Speedrun",
+    description = "Go from the start of the game to receiving the canteen as fast as you can",
+    start = no_speedrun_illegal_cheats &&
+        game_start,
+    cancel = stopped_gameplay,
+    submit = prologue_end,
+    value = timer_active,
+    format = "FRAMES",
+    lower_is_better = true
+)
+
+leaderboard(
+    title = ChapterTitles[0] + " Speedrun",
+    description = "Complete the chapter " + ChapterTitles[0] + " as fast as you can",
+    start = no_speedrun_illegal_cheats &&
+        prologue_end,
+    cancel = stopped_gameplay,
+    submit = chapter_1_end,
+    value = timer_active,
+    format = "FRAMES",
+    lower_is_better = true
+)
+
+leaderboard(
+    title = ChapterTitles[1] + " Speedrun",
+    description = "Complete the chapter " + ChapterTitles[1] + " as fast as you can",
+    start = no_speedrun_illegal_cheats &&
+        chapter_1_end,
+    cancel = stopped_gameplay,
+    submit = chapter_2_end,
+    value = timer_active,
+    format = "FRAMES",
+    lower_is_better = true
+)
+
+leaderboard(
+    title = ChapterTitles[2] + " Speedrun",
+    description = "Complete the chapter " + ChapterTitles[2] + " as fast as you can",
+    start = no_speedrun_illegal_cheats &&
+        chapter_2_end,
+    cancel = stopped_gameplay,
+    submit = chapter_3_end,
+    value = timer_active,
+    format = "FRAMES",
+    lower_is_better = true
+)
+
+leaderboard(
+    title = ChapterTitles[3] + " Speedrun",
+    description = "Complete the chapter " + ChapterTitles[3] + " as fast as you can",
+    start = no_speedrun_illegal_cheats &&
+        chapter_3_end,
+    cancel = stopped_gameplay,
+    submit = chapter_4_end,
+    value = timer_active,
+    format = "FRAMES",
+    lower_is_better = true
+)
+
+leaderboard(
+    title = ChapterTitles[4] + " Speedrun",
+    description = "Complete the chapter " + ChapterTitles[4] + " as fast as you can",
+    start = no_speedrun_illegal_cheats &&
+        chapter_4_end,
+    cancel = stopped_gameplay,
+    submit = chapter_5_end,
+    value = timer_active,
+    format = "FRAMES",
+    lower_is_better = true
+)
+
+leaderboard(
+    title = ChapterTitles[5] + " Speedrun",
+    description = "Complete the chapter " + ChapterTitles[5] + " as fast as you can",
+    start = no_speedrun_illegal_cheats &&
+        chapter_5_end,
+    cancel = stopped_gameplay,
+    submit = chapter_6_end,
+    value = timer_active,
+    format = "FRAMES",
+    lower_is_better = true
+)
+
+leaderboard(
+    title = ChapterTitles[6] + " Speedrun",
+    description = "Complete the chapter " + ChapterTitles[6] + " as fast as you can",
+    start = no_speedrun_illegal_cheats &&
+        chapter_6_end,
+    cancel = stopped_gameplay,
+    submit = chapter_7_end,
+    value = timer_active,
+    format = "FRAMES",
+    lower_is_better = true
+)
+
+leaderboard(
+    title = ChapterTitles[7] + " Speedrun",
+    description = "Complete the chapter " + ChapterTitles[7] + " as fast as you can",
+    start = no_speedrun_illegal_cheats &&
+        chapter_7_end,
+    cancel = stopped_gameplay,
+    submit = chapter_8_end,
+    value = timer_active,
+    format = "FRAMES",
+    lower_is_better = true
+)
+
+leaderboard(
+    title = ChapterTitles[8] + " Speedrun",
+    description = "Complete the chapter " + ChapterTitles[8] + " as fast as you can",
+    start = no_speedrun_illegal_cheats &&
+        chapter_8_end,
+    cancel = stopped_gameplay,
+    submit = chapter_9_end,
+    value = timer_active,
+    format = "FRAMES",
+    lower_is_better = true
+)
+
+leaderboard(
+    title = ChapterTitles[9] + " Speedrun",
+    description = "Complete the chapter " + ChapterTitles[9] + " as fast as you can",
+    start = no_speedrun_illegal_cheats &&
+        chapter_9_end,
+    cancel = stopped_gameplay,
+    submit = chapter_10_end,
+    value = timer_active,
+    format = "FRAMES",
+    lower_is_better = true
+)
+
+leaderboard(
+    title = ChapterTitles[10] + " Speedrun",
+    description = "Complete the chapter " + ChapterTitles[10] + " as fast as you can",
+    start = no_speedrun_illegal_cheats &&
+        chapter_10_end,
+    cancel = stopped_gameplay,
+    submit = chapter_11_end,
+    value = timer_active,
+    format = "FRAMES",
+    lower_is_better = true
+)
+
+leaderboard(
+    title = ChapterTitles[11] + " Speedrun",
+    description = "Complete the chapter " + ChapterTitles[11] + " as fast as you can",
+    start = no_speedrun_illegal_cheats &&
+        chapter_11_end,
+    cancel = stopped_gameplay,
+    submit = chapter_12_end,
+    value = timer_active,
+    format = "FRAMES",
+    lower_is_better = true
+)
+
+leaderboard(
+    title = ChapterTitles[12] + " Speedrun",
+    description = "Complete the chapter " + ChapterTitles[12] + " as fast as you can",
+    start = no_speedrun_illegal_cheats &&
+        chapter_12_end,
+    cancel = stopped_gameplay,
+    submit = chapter_13_end,
+    value = timer_active,
+    format = "FRAMES",
+    lower_is_better = true
+)
+
+leaderboard(
+    title = ChapterTitles[13] + " Speedrun",
+    description = "Complete the chapter " + ChapterTitles[13] + " as fast as you can",
+    start = no_speedrun_illegal_cheats &&
+        chapter_13_end,
+    cancel = stopped_gameplay,
+    submit = chapter_14_end,
+    value = timer_active,
+    format = "FRAMES",
+    lower_is_better = true
+)
+
+leaderboard(
+    title = ChapterTitles[14] + " Speedrun",
+    description = "Complete the chapter " + ChapterTitles[14] + " as fast as you can",
+    start = no_speedrun_illegal_cheats &&
+        chapter_14_end,
+    cancel = stopped_gameplay,
+    submit = pusca_defeated,
+    value = timer_active,
+    format = "FRAMES",
+    lower_is_better = true
+)
+
+leaderboard(
+    title = "Holy Pilgrimage Test",
+    description = "I need to get times",
+    start = no_speedrun_illegal_cheats &&
+        (leftMap("Monkey Temple (Harry)") ||
+        leftMap("Scorpion Temple (Harry)") ||
+        leftMap("Penguin Temple (Harry)") ||
+        leftMap("Chameleon Temple") ||
+        leftMap("The Altar of Ages") ||
+        leftMap("Gates of El Dorado")),
+    cancel = stopped_gameplay,
+    submit = tally(6, once(prev(inMap("Monkey Temple (Harry)"))), 
+            once(prev(inMap("Scorpion Temple (Harry)"))),
+            once(prev(inMap("Penguin Temple (Harry)"))),
+            once(prev(inMap("Chameleon Temple"))),
+            once(prev(inMap("The Altar of Ages"))),
+            once(prev(inMap("Gates of El Dorado")))),
+    value = timer_active,
+    format = "FRAMES",
+    lower_is_better = true
+)
 
 // ---------------------------------------------------------------------------------------------  RICH PRESENCE  ---------------------------------------------------------------------------------------------
 
 // TODO
-//  -Classic Pitfall games in both main menu and Punchau
 //  -Add emojis for Equipped items?  🥤🪨🔥🛡️🤿🚣⛏️💣🤢
 
 rp_maps = {
@@ -757,17 +1577,19 @@ rp_maps = {
 function RPCharacter() => RetroHarry() + NativeHarry()*2 + NicoleHarry()*3
 characters = { 0: "Harry", 1: "Retro Harry", 2: "A Native", 3: "Nicole"}
 
-in_initial_jaguar_fight = inMap("Ruins of El Dorado (Supai/Jaguar)") && TNT() == 0
-
 
 p2_rhonda = { 0: "", 1: " 👧"}
 p2_quickclaw = { 0: "", 1: " 🐱"}
 p2_raj_diamond = { 0: "", 1: " 💎"}
 
-rp_cheater_canteen = { 0: "", 1: " ⚠️ BOTTOMLESS CANTEEN CHEAT ⚠️"}
-rp_cheater_hyperpunch = { 0: "", 1: " ⚠️ HYPERPUNCH CHEAT ⚠️"}
-rp_cheater_slowmo = { 0: "", 1: " ⚠️ SLOW-MO CHEAT ⚠️"}
-rp_cheater_super_slowmo = { 0: "", 1: " ⚠️ SUPER SLOW-MO CHEAT ⚠️"}
+function RPCheats() => FastMo() + 2 * SlowMo() + 2 * SuperSlowMo() + 2 * BottomlessCanteen() + 2 * Hyperpunch()
+rp_cheater_warning = { 0: ""}
+
+rp_cheater_canteen = { 0: "", 1: " 🚰"}
+rp_cheater_hyperpunch = { 0: "", 1: " 👊️"}
+rp_cheater_fastmo = { 0: "", 1: " ⏩"}
+rp_cheater_slowmo = { 0: "", 1: " ⏪"}
+rp_cheater_super_slowmo = { 0: "", 1: " ⏮️"}
 
 rich_presence_conditional_display(PlayingRetroGame() == 0x01 && playing_pitfall_1, "Playing Pitfall! | 🏃{0} | 💯{1} | ⏰{2} | 💰{3}/32",
     rich_presence_value("Pitfall Lives", pitfall_1_lives),
@@ -787,14 +1609,16 @@ rich_presence_conditional_display(!in_gameplay, "On the Main Menu")
 rich_presence_conditional_display(in_initial_jaguar_fight, "{0} is fighting a demonic jaguar",
     rich_presence_lookup("Character", RPCharacter(), characters)
 )
-rich_presence_display("{0} is {1} | ❤️{2}/{3} | 🗿{4}{5}{6}{7}{8}",
+rich_presence_display("{0} is {1} | ❤️{2}/{3} | 🗿 {4}{5}{6}{7}{8}{9}{10}",
     rich_presence_lookup("Character", RPCharacter(), characters),
     rich_presence_lookup("Map", Map(), rp_maps),
     rich_presence_value("Health", CurrentHealth()),
     rich_presence_value("Max Health", MaxHealth()),
     rich_presence_value("Spare Idols", IdolCount()),
+    rich_presence_lookup("Cheat Warning", RPCheats(), rp_cheater_warning, fallback="⚠️ Cheats active-Some achievements disabled ⚠️ Cheats:"),
     rich_presence_lookup("Canteen Cheat", BottomlessCanteen(), rp_cheater_canteen),
     rich_presence_lookup("Hyperpunch Cheat", Hyperpunch(), rp_cheater_hyperpunch),
+    rich_presence_lookup("Fastmo Cheat", FastMo(), rp_cheater_fastmo),
     rich_presence_lookup("Slowmo Cheat", SlowMo(), rp_cheater_slowmo),
     rich_presence_lookup("Super Slowmo Cheat", SuperSlowMo(), rp_cheater_super_slowmo)
 )
