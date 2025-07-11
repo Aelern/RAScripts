@@ -283,6 +283,11 @@ function AtariMemoryBase() => (dword_be((dword_be((dword_be((dword_be(AtariPoint
      + 0x42fc8) & pointer_mask)
      + 0x50) & pointer_mask)
 
+// $4CCAE4: [32-bit BE] Pause pointer
+//          +0x28 = Pause menu tracker
+function PausePointer() => dword_be(0x4CCAE4) & pointer_mask
+function PauseTracker() => dword_be(PausePointer() + 0x28)
+
 // $4CCAFC: [32-bit BE] Difficulty of last played Native Game
 function NativeGameDifficulty() => dword_be(0x4CCAFC)
 
@@ -307,7 +312,7 @@ function ObjectTableHead() => dword_be(0x832760)
 //          0x09 = Entering 2D Pitfall mode
 //          0x0a = 2d Pitfall mode
 //          0x0b = Exiting 2D pitfall mode
-function PauseTracker() => dword_be(0x962688)
+function PauseTracker2() => dword_be(0x962688)
 
 MapIDs = {
     "Abandoned Cavern": 0xEA667977,
@@ -399,10 +404,10 @@ dont_die = never(prev(HarryState()) != 0x37 &&
                 HarryState() == 0x37) &&
             never(prev(HarryState()) != 0x90 &&
                 HarryState() == 0x90)
-displaced = prev(HarryX()) - HarryX() > 10 ||
-    prev(HarryX()) - HarryX() < -10 ||
-    prev(HarryY()) - HarryY() > 10 ||
-    prev(HarryY()) - HarryY() < -10
+displaced = (prev(HarryX()) - HarryX() > 5.0 ||
+    prev(HarryX()) - HarryX() < -5.0 ||
+    prev(HarryY()) - HarryY() > 5.0 ||
+    prev(HarryY()) - HarryY() < -5.0)
 timer_active = PauseTracker() + Loading() + MapLoading() == 0
 
 gained_sling = prev(Sling()) == 0x00 && Sling() == 0x01
@@ -448,12 +453,72 @@ function Caught() => prev(inMap("St. Claire's Excavation Camp (Night)")) &&
     prior(HarryState() != 0x76) &&
     (displaced)
 
+never_caught = never(prev(inMap("St. Claire's Excavation Camp (Night)")) &&
+    prior(HarryState() != 0x76) &&
+    prev(HarryX()) - HarryX() > 5.5) &&
+    never(prev(inMap("St. Claire's Excavation Camp (Night)")) &&
+    prior(HarryState() != 0x76) &&
+    prev(HarryX()) - HarryX() < -5.5) &&
+    never(prev(inMap("St. Claire's Excavation Camp (Night)")) &&
+    prior(HarryState() != 0x76) &&
+    prev(HarryY()) - HarryY() > 5.5) &&
+    never(prev(inMap("St. Claire's Excavation Camp (Night)")) &&
+    prior(HarryState() != 0x76) &&
+    prev(HarryY()) - HarryY() < -5.5)
+    
+function WasInJail() => (prev(HarryX()) > 62.25 &&
+    prev(HarryX()) < 77.85 &&
+    prev(HarryY()) > 240.4 &&
+    prev(HarryY()) < 260.75 &&
+    prev(HarryZ()) > 32.2 &&
+    prev(HarryZ()) < 40.9) ||
+    (prev(HarryX()) == 0.0 &&
+    prev(HarryY()) == 0.0)
+
+function WasNotInJail() => !(prev(HarryX()) > 60.9 &&
+    prev(HarryX()) < 77.85 &&
+    prev(HarryY()) > 240.4 &&
+    prev(HarryY()) < 260.75 &&
+    prev(HarryZ()) > 29.2 &&
+    prev(HarryZ()) < 40.9) &&
+    (prev(HarryX()) != 0.0 &&
+    prev(HarryY()) != 0.0)
+
+
+function InJailSpawn() => inMap("St. Claire's Excavation Camp (Night)") &&
+    HarryX() > 63.4 &&
+    HarryX() < 65.4 &&
+    HarryY() > 249.1 &&
+    HarryY() < 251.1 &&
+    HarryZ() > 31.5 &&
+    HarryZ() < 33.5
+    
+sent_to_jail = InJailSpawn() && WasNotInJail()
+
 function StClairesSpawn() => inMap("St. Claire's Excavation Camp (Night)") && 
     finished_cutscene &&
     Shield() == 0x00
 
+achievement(
+    title = "Testing claire spawn",
+    description = "Figuring out what is triggering wrong in Dolphin version",
+    points = 0,
+    trigger = StClairesSpawn()
+)
+achievement(
+    title = "Testing claire caught",
+    description = "Figuring out what is triggering wrong in Dolphin version",
+    points = 0,
+    trigger = (Caught())
+)
 
-entered_final_bosses = prev(inMap("Gates of El Dorado")) && inMap("Ruins of El Dorado (Supai/Jaguar)")
+
+
+entered_final_bosses = inMap("Ruins of El Dorado (Supai/Jaguar)") &&
+            finished_cutscene &&
+            Canteen() == 0x01 &&
+            BossHealth() == 0xa
+
 drank_canteen = prev(CanteenContent()) == CanteenContent() + 1
 st_claire_1_start = Torch() == 0x00 && finished_cutscene && inMap("Mouth of Inti")
 all_trackable_upgrades = MaxHealth() == 0x0a && 
@@ -488,7 +553,8 @@ pickaxe_race_winning_height = 214.64278
 tuco_shoot_start = inMap("Tuco Shoot") &&
     prev(PauseTracker()) == 0x04 &&
     PauseTracker() == 0x00
-tuco_shoot_won = prev(tuco_shoot_score) < 10 &&
+tuco_shoot_won = inMap("Tuco Shoot") &&
+    prev(tuco_shoot_score) < 10 &&
     tuco_shoot_score >= 10 &&
     tuco_shoot_timer <= 0x3c &&
     tuco_shoot_timer > 0x00
@@ -517,7 +583,8 @@ whack_tuco_won = inMap("Whack-A-Tuco") &&
 kaboom_start = inMap("KaBOOM!") &&
     prev(PauseTracker()) == 0x04 &&
     PauseTracker() == 0x00
-kaboom_won = prev(kaboom_score) > 0 &&
+kaboom_won = inMap("KaBOOM!") &&
+    prev(kaboom_score) > 0 &&
     kaboom_score == 0 &&
     kaboom_timer <= 0x3c &&
     kaboom_timer > 0x00
@@ -595,9 +662,9 @@ chapter_4_start = prev(Inactionable()) == 0x01 &&
     prev(HarryState()) == 0x00 &&
     HarryState() == 0x00 &&
     prior(inMap("Monkey Temple (Harry)")) &&
-    inMap("Flooded Courtyard") &&
-    HarryY() > 470.0 &&
-    HarryY() < 473.0
+    inMap("Flooded Courtyard") //&&
+    //HarryY() > 470.0 &&
+    //HarryY() < 473.0
 chapter_5_start = chapter_start &&
     inMap("Native Village") &&
     Shield() == 0x00
@@ -631,11 +698,14 @@ pusca_defeated = inMap("Ancient El Dorado (Pusca)") &&
     boss_defeated
 
 
+// ---------------------------------------------------------------------------------------------  ACHIEVEMENTS  ---------------------------------------------------------------------------------------------
+
+
 achievement(
     title = "Test Achievement",
     description = "Making sure this behaves as I expect",
     points = 0,
-    trigger = prev(HarryPointer() != 0) && stopped_gameplay
+    trigger = chapter_4_start
 )
 
 achievement(
@@ -652,7 +722,7 @@ achievement(
 achievement(
     title = "The Lost Expeditioner",
     description = "Follow the flares to find another survivor",
-    points = 2,
+    points = 4,
     trigger = in_gameplay && 
         no_illegal_cheats &&
         chapter_1_start,
@@ -691,7 +761,7 @@ achievement(
 
 achievement(
     title = ChapterTitles[3],
-    description = "Make contact with the Native tribe",
+    description = "Make contact with the native tribe",
     points = 2,
     trigger = in_gameplay && 
         no_illegal_cheats &&
@@ -701,7 +771,7 @@ achievement(
 
 achievement(
     title = ChapterTitles[4],
-    description = "See Princess Micay returned to her village",
+    description = "Convince Princess Micay to return to the village",
     points = 2,
     trigger = in_gameplay && 
         no_illegal_cheats &&
@@ -711,7 +781,7 @@ achievement(
 
 achievement(
     title = ChapterTitles[5],
-    description = "Get initiated into the Native tribe",
+    description = "Get initiated into the native tribe",
     points = 1,
     trigger = in_gameplay && 
         no_illegal_cheats &&
@@ -721,7 +791,7 @@ achievement(
 
 achievement(
     title = ChapterTitles[6],
-    description = "Recover a gas mask from the Renegade Headquarters",
+    description = "Recover the Gasmask from Renegade Headquarters",
     points = 5,
     trigger = in_gameplay && 
         no_illegal_cheats &&
@@ -772,7 +842,7 @@ achievement(
 achievement(
     title = ChapterTitles[11],
     description = "Seek an ancient artifact inside Chameleon Temple",
-    points = 2,
+    points = 1,
     trigger = in_gameplay && 
         no_illegal_cheats &&
         chapter_13_start,
@@ -811,23 +881,27 @@ achievement(
 
 achievement(
     title = "Shove Off St. Scum",
-    description = "Defeat St. Claire in Mouth of Inti without any health upgrades and without using the canteen",
+    description = "Defeat St. Claire in Mouth of Inti without any health upgrades and without using the Canteen",
     points = 5,
     trigger = in_gameplay && 
         no_illegal_cheats &&
         once(inMap("Mouth of Inti") &&
             st_claire_1_start && 
             MaxHealth() == 0x05 &&
+            never(abandoned_challenge) &&
             never(drank_canteen)) &&
         inMap("Mouth of Inti") &&
         trigger_when(st_claire_1_defeated) && 
+        never(inMap("Mouth of Inti") &&
+            prev(MapLoading()) == 0x00 &&
+            MapLoading() == 0x01) &&
         MaxHealth() == 0x05,
     type = "Missable"
 )
 
 achievement(
     title = "Target Sighted",
-    description = "Defeat St. Claire at the Mouth of Inti without getting hit and without unequipping the sling",
+    description = "Defeat St. Claire at the Mouth of Inti without getting hit and without unequipping the Sling",
     points = 10,
     trigger = in_gameplay && 
         no_illegal_cheats &&
@@ -858,11 +932,13 @@ achievement(
 
 achievement(
     title = "Renegade Wrangler",
-    description = "Enter Renegade Headquarters and claim the Gas Mask without any health upgrades and without using the canteen",
+    description = "Enter Renegade Headquarters and claim the Gasmask without any health upgrades and without using the Canteen",
     points = 5,
     trigger = in_gameplay && 
         no_illegal_cheats &&
         once(inMap("Renegade Headquarters") &&
+            prev(HarryState()) == 0x58 &&
+            HarryState() != 0x58 &&
             GasMask() == 0x00 &&
             MaxHealth() == 0x05 &&
             never(drank_canteen)) &&
@@ -874,23 +950,27 @@ achievement(
 
 achievement(
     title = "You Think I Look Like I Got Money?",
-    description = "Defeat St. Claire in Crystal Cavern without any health upgrades and without using the canteen",
+    description = "Defeat St. Claire in Crystal Cavern without any health upgrades and without using the Canteen",
     points = 10,
     trigger = in_gameplay && 
         no_illegal_cheats &&
         once(inMap("Crystal Cavern") &&
             boss_starts && 
             MaxHealth() == 0x05 &&
+            never(abandoned_challenge) &&
             never(drank_canteen)) &&
         inMap("Crystal Cavern") &&
         trigger_when(boss_defeated) && 
+        never(inMap("Crystal Cavern") &&
+            prev(MapLoading()) == 0x00 &&
+            MapLoading() == 0x01) &&
         MaxHealth() == 0x05,
     type = "Missable"
 )
 
 achievement(
     title = "A Dance With The Devil",
-    description = "Defeat St. Claire in the Crystal Cavern without using any attacks except for the breakdance",
+    description = "Defeat St. Claire in Crystal Cavern without using any attacks except for the Breakdance",
     points = 10,
     trigger = in_gameplay && 
         no_illegal_cheats &&
@@ -898,7 +978,7 @@ achievement(
             boss_starts &&
             never(using_non_breakdance_attack) &&
             never(abandoned_challenge)) &&
-            never(prev(MapLoading()) == 0x00 && MapLoading() == 0x01) &&
+        //never(prev(MapLoading()) == 0x00 && MapLoading() == 0x01) &&
         trigger_when(boss_defeated),
     type = "Missable"
 )
@@ -925,20 +1005,22 @@ achievement(
     trigger = in_gameplay && 
         no_illegal_cheats &&
         once(inMap("Penguin Temple (Spirit)") &&
-        MapLoading() == 0x01 &&    
-        never(HarryState() == 0x08) &&
-        never(abandoned_challenge)) &&
+            MapLoading() == 0x01 &&    
+            never(HarryState() == 0x08) &&
+            never(abandoned_challenge)) &&
         trigger_when(animal_spirit_defeated),
     type = "Missable"
 )
 
 achievement(
     title = "Could I Be The Green Ninja?",
-    description = "Enter Apu Illapu Shrine and rescue Mole from the spinjas without any health upgrades and without using the canteen",
+    description = "Enter Apu Illapu Shrine and rescue Mole from the spinjas without any health upgrades and without using the Canteen",
     points = 5,
     trigger = in_gameplay && 
         no_illegal_cheats &&
         once(inMap("Apu Illapu Shrine") &&
+            prev(HarryState()) == 0x58 &&
+            HarryState() != 0x58 &&
             TNT() == 0x00 &&
             MaxHealth() == 0x05 &&
             never(drank_canteen)) &&
@@ -950,12 +1032,13 @@ achievement(
 
 achievement(
     title = "I'll See Myself Out",
-    description = "Recover everything in St. Claire's Excavation Camp without ever being caught",
-    points = 10,
+    description = "Recover everything in St. Claire's Excavation Camp without being caught",
+    points = 25,
     trigger = in_gameplay && 
         no_illegal_cheats &&
         once(StClairesSpawn() && 
-            never(Caught())) &&
+//            never(Caught())) &&
+            never(sent_to_jail)) &&
         never(stopped_gameplay) &&
         trigger_when(got_all_stealth_items &&
         Canteen() == 0x01 &&
@@ -974,23 +1057,22 @@ achievement(
     points = 10,
     trigger = in_gameplay && 
         no_illegal_cheats &&
-        once(inMap("Ruins of El Dorado (Supai/Jaguar)") &&
-            Canteen() == 0x01 &&
-            finished_cutscene &&
-            BossHealth() == 0xa &&
-            never(prev(CurrentHealth()) > CurrentHealth()) &&
+        once(entered_final_bosses &&
             never(abandoned_challenge) &&
             never(repeated(60*60, PauseTracker() == 0x00 && 
                 never(inMap("Ruins of El Dorado (Supai/Jaguar)") &&
             Canteen() == 0x01 &&
             finished_cutscene)))) &&
+        never(inMap("Ruins of El Dorado (Supai/Jaguar)") &&
+            Canteen() == 0x01 &&
+            prev(CurrentHealth()) > CurrentHealth()) &&
         trigger_when(boss_defeated),
     type = "Missable"
 )
 
 achievement(
     title = "I Don't Need It",
-    description = "Defeat the demonic jaguar and Pusca without any health upgrades and without using the canteen",
+    description = "Defeat the demonic jaguar and Pusca without any health upgrades and without using the Canteen",
     points = 25,
     trigger = in_gameplay && 
         no_illegal_cheats &&
@@ -1014,7 +1096,7 @@ achievement(
 
 achievement(
     title = "This Is an Extreme Thirst",
-    description = "Max out your canteen capacity",
+    description = "Max out your Canteen's capacity",
     points = 10,
     trigger = in_gameplay &&
         prev(CanteenCapacity()) == 0x09 &&
@@ -1030,19 +1112,20 @@ achievement(
         HeroicDash() + SuperSling() + HeroicDive() + RisingStrike() + Breakdance() + SmashStrike() == 6
 )
 
-achievement(
+/*achievement(
     title = "Worth My Weight In Gold, Apparently",
-    description = "Get a special prize for purchasing all of the Shaman's wares",
-    points = 25,
+    description = "Get a special prize for purchasing all of the shaman's wares",
+    points = 0,
     trigger = in_gameplay && 
         PitfallAccess() &&
         MessageBoxProperty() == 0x43998000 &&
         all_trackable_upgrades &&
         LastMessageBoxProperty() == 0x43aa8000
-)
+)*/
+
 achievement(
     title = "Trial of the Howler",
-    description = "Climb the Great Tree from Altar of Huitaca to Statues of Ayar without ever attacking",
+    description = "Enter The Great Tree from Altar of Huitaca and pass into Statues of Ayar without ever attacking",
     points = 5,
     trigger = in_gameplay &&
         no_illegal_cheats &&
@@ -1091,7 +1174,7 @@ achievement(
 achievement(
     title = "Float Like a Butterfly",
     description = "Cross Butterfly Glade from the Turtle Monument side and enter Renegade Fort without swimming or using the Heroic Dive",
-    points = 10,
+    points = 5,
     trigger = in_gameplay && 
         no_illegal_cheats &&
         once(inMap("Butterfly Glade") &&
@@ -1111,7 +1194,7 @@ achievement(
 
 achievement(
     title = "All I Need Is One Punch",
-    description = "Enter the Underground Dam from the Jungle Canyon entrance and cross into the Abandoned Cavern without using any attacks except for one Rising Strike",
+    description = "Enter the Underground Dam from Jungle Canyon and pass into Abandoned Cavern without using any attacks except for one Rising Strike",
     points = 10,
     trigger = in_gameplay &&
         no_illegal_cheats &&
@@ -1158,7 +1241,7 @@ achievement(
 
 achievement(
     title = "Retrace Your Steps",
-    description = "Travel from the Gates of El Dorado back to the Crash Site in under 4:00 without leaving the Heart of the Jungle",
+    description = "Travel from Gates of El Dorado to Crash Site in under 4:00 without leaving The Heart of the Jungle",
     points = 10,
     trigger = in_gameplay && 
         no_speedrun_illegal_cheats &&
@@ -1171,19 +1254,21 @@ achievement(
         never(enterMap("Underground Dam")) &&
         never(enterMap("Flooded Courtyard")) &&
         never(enterMap("Flooded Cave")) &&
+        never(movedMap("Fire-bombed Towers", "Gates of El Dorado")) &&
         trigger_when(inMap("Crash Site")) &&
         never(stopped_gameplay)
 )
 
 achievement(
     title = "Native Envoy",
-    description = "Travel from the Native Village to the Renegade Headquarters healing fountain in under 1:45",
+    description = "Travel from Native Village to the Renegade Headquarters healing fountain in under 1:45",
     points = 10,
     trigger = in_gameplay && 
         no_speedrun_illegal_cheats &&
         once(no_speedrun_illegal_cheats && 
             prev(inMap("Native Village")) &&
             inMap("Turtle Monument") &&
+            never(enterMap("Native Village")) &&
             never(repeated(105*60, timer_active && 
                 never(prev(inMap("Native Village")) && inMap("Turtle Monument"))))) &&
         trigger_when(inMap("Renegade Headquarters") &&
@@ -1193,7 +1278,7 @@ achievement(
 
 achievement(
     title = "I Should've Taken That Left Turn at Albequerque",
-    description = "Travel from the Underground Dam to the Mountain Overlook and return to the Underground Dam in under 4:00",
+    description = "Travel from Underground Dam to Mountain Overlook and return to Underground Dam in under 4:00",
     points = 10,
     trigger = in_gameplay && 
         no_speedrun_illegal_cheats &&
@@ -1215,26 +1300,25 @@ achievement(
     trigger = in_gameplay && 
         no_speedrun_illegal_cheats &&
         once(no_speedrun_illegal_cheats && 
-            prev(Map()) != Map() &&
-            inMap("Spinja Lair") &&
-            prev(inMap("White Valley")) &&
-            !inMap("White Valley") &&
+            movedMap("White Valley", "Spinja Lair") &&
             never(movedMap("White Valley", "Mountain Sled Run")) &&
             never(repeated(4*60*60, timer_active && 
                 never(prev(inMap("White Valley")) && inMap("Spinja Lair"))))) &&
         trigger_when(inMap("White Valley") &&
             once(inMap("Apu Illapu Shrine") &&
                 never(prev(inMap("White Valley"))))) &&
+        never(movedMap("Spinja Lair", "White Valley")) &&
         never(stopped_gameplay)
 )
 
 achievement(
     title = "Holy Pilgrimage",
-    description = "Visit all four animal temples, The Altar of Ages, and the Gates of El Dorado in any order in under 18:00",
+    description = "Visit all four animal temples, The Altar of Ages, and Gates of El Dorado in any order in under 18:00",
     points = 25,
     trigger = in_gameplay && 
         no_speedrun_illegal_cheats &&
         never(stopped_gameplay) &&
+
         ((once(no_speedrun_illegal_cheats &&
             movedMap("Monkey Temple (Harry)", "Flooded Courtyard") &&
             never(repeated(18*60*60, timer_active &&
@@ -1298,11 +1382,10 @@ achievement(
 
 achievement(
     title = "I'll Get That Blasted Porcupine!",
-    description = "Beat a round of Tuco Shoot on hard without hitting any Tuco Tucos",
+    description = "Beat Tuco Shoot on hard without hitting any Tuco Tucos",
     points = 5,
     trigger = in_gameplay && 
         no_illegal_cheats &&
-        inMap("Tuco Shoot") &&
         NativeGameDifficulty() == 0x02 &&
         once(tuco_shoot_start &&
             NativeGameDifficulty() == 0x02 &&
@@ -1378,11 +1461,10 @@ achievement(
 
 achievement(
     title = "Win, Lose And KaBOOM!",
-    description = "Win KaBOOM! on hard without exiting TNT throwing mode for movement",
+    description = "Win KaBOOM! on hard without exiting TNT throwing mode to move",
     points = 5,
     trigger = in_gameplay && 
         no_illegal_cheats &&
-        inMap("KaBOOM!") &&
         NativeGameDifficulty() == 0x02 &&
         once(kaboom_start &&
             NativeGameDifficulty() == 0x02 &&
@@ -1405,9 +1487,11 @@ achievement(
 
 achievement(
     title = "There's Always Another Adventure",
-    description = "Find a treasure in Pitfall 2: Lost Caverns",
-    points = 5,
-    trigger = PlayingRetroGame() == 0x01 &&
+    description = "Find a treasure in Pitfall 2: Lost Caverns using the machine in Punchau Shrine",
+    points = 25,
+    trigger = in_gameplay &&
+        inMap("Punchau Shrine") &&
+        PlayingRetroGame() == 0x01 &&
         playing_pitfall_2 &&
         pitfall_2_treasures + pitfall_2_collection >
             prev(pitfall_2_collection)
@@ -1445,11 +1529,11 @@ achievement(
 )
 */
 
-// ---------------------------------------------------------------------------------------------  RICH PRESENCE  ---------------------------------------------------------------------------------------------
+// ---------------------------------------------------------------------------------------------  LEADERBOARDS  ---------------------------------------------------------------------------------------------
 
 leaderboard(
     title = "Any% Speedrun",
-    description = "Beat the game from a fresh file",
+    description = "Beat the game from a fresh file as fast as you can",
     start = no_speedrun_illegal_cheats &&
         game_start,
     cancel = stopped_gameplay,
@@ -1460,9 +1544,33 @@ leaderboard(
 )
 
 leaderboard(
-    title = "100% Speedrun",
-    description = "From a fresh file defeat Pusca and buy every item from the Shaman shop",
-    start = no_speedrun_illegal_cheats &&
+    title = "Fast Motion Speedrun",
+    description = "Beat the game from a fresh file with the Fast Motion cheat enabled as fast as you can",
+    start = BottomlessCanteen() == 0x00 && Hyperpunch() == 0x00 && FastMo() == 0x01 && SlowMo() == 0x00 && SuperSlowMo() == 0x00 &&
+        game_start,
+    cancel = stopped_gameplay,
+    submit = pusca_defeated,
+    value = timer_active,
+    format = "FRAMES",
+    lower_is_better = true
+)
+
+leaderboard(
+    title = "Slow Motion Speedrun",
+    description = "Beat the game from a fresh file with the Slow Motion cheat enabled as fast as you can",
+    start = BottomlessCanteen() == 0x00 && Hyperpunch() == 0x00 && FastMo() == 0x00 && SlowMo() == 0x01 && SuperSlowMo() == 0x00 &&
+        game_start,
+    cancel = stopped_gameplay,
+    submit = pusca_defeated,
+    value = timer_active,
+    format = "FRAMES",
+    lower_is_better = true
+)
+
+leaderboard(
+    title = "Super Slow Motion Speedrun",
+    description = "Beat the game from a fresh file with the Super Slow Motion cheat enabled as fast as you can",
+    start = BottomlessCanteen() == 0x00 && Hyperpunch() == 0x00 && FastMo() == 0x00 && SlowMo() == 0x00 && SuperSlowMo() == 0x01 &&
         game_start,
     cancel = stopped_gameplay,
     submit = pusca_defeated,
@@ -1773,7 +1881,7 @@ leaderboard(
 
 leaderboard(
     title = "Whack-a-Tuco Easy Speedrun",
-    description = "Beat Whack-a-Tuco on easy with as much timer remaining as you can",
+    description = "Beat Whack-a-Tuco on easy with as much time remaining as you can",
     start = whack_tuco_won &&
         NativeGameDifficulty() == 0x00,
     cancel = reset_challenge,
@@ -1862,7 +1970,7 @@ leaderboard(
 )
 
 leaderboard(
-    title = "Pitfall! All Treasures",
+    title = "Pitfall! All Treasures Speedrun",
     description = "Collect every treasure in Pitfall! with as much time remaining as you can",
     start = playing_pitfall_1 &&
         prev(pitfall_1_treasures) == 31 &&
@@ -2053,5 +2161,9 @@ rich_presence_display("{0} is {1} | ❤️{2}/{3} | 🗿 {4}{5}{6}{7}{8}{9}{10}"
     rich_presence_lookup("Slowmo Cheat", SlowMo(), rp_cheater_slowmo),
     rich_presence_lookup("Super Slowmo Cheat", SuperSlowMo(), rp_cheater_super_slowmo)
 )
+
+
+
+
 
 
