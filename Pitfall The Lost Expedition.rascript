@@ -656,15 +656,21 @@ chapter_3_start = chapter_start &&
     inMap("Mouth of Inti")
 chapter_3_end = grabbed_key_item &&
     inMap("Monkey Temple (Harry)")
-chapter_4_start = prev(Inactionable()) == 0x01 &&
+/*chapter_4_start = prev(Inactionable()) == 0x01 &&
     Inactionable() == 0x00 &&
-    prior(HarryState()) == 0x58 &&
-    prev(HarryState()) == 0x00 &&
-    HarryState() == 0x00 &&
+    //prior(HarryState()) == 0x58 &&
+    //prev(HarryState()) == 0x00 &&
+    //HarryState() == 0x00 &&
     prior(inMap("Monkey Temple (Harry)")) &&
-    inMap("Flooded Courtyard") //&&
-    //HarryY() > 470.0 &&
-    //HarryY() < 473.0
+    inMap("Flooded Courtyard") &&
+    HarryX() > -20.0 &&
+    HarryX() < 10.0 &&
+    HarryY() > 468.0 &&
+    HarryY() < 473.0*/
+chapter_4_start = finished_cutscene &&
+    HarryX() > -100.0 &&
+    HarryY() < 100.0 &&
+    inMap("Monkey Temple (Harry)")
 chapter_5_start = chapter_start &&
     inMap("Native Village") &&
     Shield() == 0x00
@@ -2161,6 +2167,7 @@ rich_presence_display("{0} is {1} | ❤️{2}/{3} | 🗿 {4}{5}{6}{7}{8}{9}{10}"
     rich_presence_lookup("Slowmo Cheat", SlowMo(), rp_cheater_slowmo),
     rich_presence_lookup("Super Slowmo Cheat", SuperSlowMo(), rp_cheater_super_slowmo)
 )
+
 
 
 
