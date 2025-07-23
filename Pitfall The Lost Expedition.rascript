@@ -108,6 +108,7 @@ function MaxHealth() => dword_be(HarryPointer() + 0x658)
 function CurrentHealth() => dword_be(HarryPointer() + 0x65C)
 function Inactionable() => dword_be(HarryPointer() + 0x680)
 function HarryState() => dword_be(HarryPointer() + 0x79c)
+//function AnimalHarryState() => dword_be((dword_be(dword_be(HarryPointer()) & pointer_mask) + 0x338 + HarryPointer()) + 0x79c)
 function InHealingFountain() => dword_be(HarryPointer() + 0x948)
 function Invincible() => dword_be(HarryPointer() + 0x960)
 function TopItem() => dword_be(dword_be(HarryPointer() + 0x970) & pointer_mask)
@@ -441,6 +442,10 @@ function movedMap(movedFrom, movedTo){
 
 in_initial_jaguar_fight = inMap("Ruins of El Dorado (Supai/Jaguar)") && Canteen() == 0
 
+monkey_spirit_defeated = movedMap("Monkey Temple (Spirit)", "Monkey Temple (Harry)")
+scorpion_spirit_defeated = movedMap("Scorpion Temple (Spirit)", "Scorpion Temple (Harry)")
+penguin_spirit_defeated = movedMap("Penguin Temple (Spirit)", "Penguin Temple (Harry)")
+
 finished_initiation = once(gained_shield) &&
     repeated(2, finished_cutscene &&
         inMap("Native Village") &&
@@ -669,7 +674,9 @@ chapter_3_end = grabbed_key_item &&
     HarryY() < 473.0*/
 chapter_4_start = finished_cutscene &&
     HarryX() > -100.0 &&
+    HarryX() != -0.0 &&
     HarryY() < 100.0 &&
+    HarryY() != 0.0 &&
     inMap("Monkey Temple (Harry)")
 chapter_5_start = chapter_start &&
     inMap("Native Village") &&
@@ -711,7 +718,13 @@ achievement(
     title = "Test Achievement",
     description = "Making sure this behaves as I expect",
     points = 0,
-    trigger = chapter_4_start
+    trigger = in_gameplay && 
+        no_illegal_cheats &&
+        once(inMap("Penguin Temple (Spirit)") &&
+            MapLoading() == 0x01 &&    
+            never(HarryState() == 0x08) &&
+            never(stopped_gameplay)) &&
+        trigger_when(penguin_spirit_defeated)
 )
 
 achievement(
@@ -930,9 +943,8 @@ achievement(
     points = 5,
     trigger = in_gameplay && 
         no_illegal_cheats &&
-        inMap("Monkey Temple (Spirit)") &&
         MonkeyTimer() >= 30 &&
-        trigger_when(animal_spirit_defeated),
+        trigger_when(monkey_spirit_defeated),
     type = "Missable"
 )
 
@@ -999,8 +1011,8 @@ achievement(
         MapLoading() == 0x01 &&
         never(repeated(30*60, HarryRotation() <= -0.75 &&
                 never(HarryRotation() > -0.75))) &&
-        never(abandoned_challenge)) &&
-    trigger_when(animal_spirit_defeated),
+        never(stopped_gameplay)) &&
+    trigger_when(scorpion_spirit_defeated),
     type = "Missable"
 )
 
@@ -1013,8 +1025,8 @@ achievement(
         once(inMap("Penguin Temple (Spirit)") &&
             MapLoading() == 0x01 &&    
             never(HarryState() == 0x08) &&
-            never(abandoned_challenge)) &&
-        trigger_when(animal_spirit_defeated),
+            never(stopped_gameplay)) &&
+        trigger_when(penguin_spirit_defeated),
     type = "Missable"
 )
 
